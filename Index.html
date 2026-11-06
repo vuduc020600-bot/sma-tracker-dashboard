@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMA Tracker Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: '#0a0e17', surface: '#131722', elevated: '#1e222d', input: '#0a0e17',
+                        default: '#2a2e39', strong: '#3d4250', primary: '#2962ff', profit: '#26a69a',
+                        loss: '#ef5350', warning: '#ff9800', info: '#2196f3', gold: '#f0b90b',
+                        txtprimary: '#d1d4dc', txtsecondary: '#a0a4af', txtmuted: '#787b86', txtdim: '#5a5d68'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0a0e17; color: #d1d4dc; -webkit-font-smoothing: antialiased; }
+        table { font-variant-numeric: tabular-nums; width: 100%; text-align: left; border-collapse: collapse; }
+        th, td { padding: 10px 12px; border-bottom: 1px solid #2a2e39; }
+        th { color: #a0a4af; font-size: 11px; font-weight: normal; text-transform: uppercase; cursor: pointer; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0e17; }
+        ::-webkit-scrollbar-thumb { background: #3d4250; border-radius: 4px; }
+        .hide { display: none !important; }
+    </style>
+</head>
+<body class="p-4 md:p-6 text-sm">
+    <div class="max-w-7xl mx-auto space-y-4">
+        <!-- HEADER -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-white"><i class="fa-solid fa-water"></i></div>
+                <div>
+                    <h1 class="text-xl font-bold text-txtprimary leading-tight">SMA Tracker</h1>
+                    <div class="text-xs text-txtsecondary">Lịch sử chạm + theo dõi sắp chạm <span class="text-gold font-bold" id="header-ind-name">SMA1250</span></div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded bg-surface border border-default text-xs text-txtsecondary">
+                <span>GitHub Actions</span> · <span id="update-time">Cập nhật...</span><div class="w-2 h-2 rounded-full bg-profit animate-pulse ml-1"></div>
+            </div>
+        </div>
+
+        <!-- INDICATOR SELECTOR -->
+        <div class="bg-surface border border-default p-3 rounded-xl flex flex-col md:flex-row items-center gap-3">
+            <div class="flex items-center gap-2 text-txtsecondary text-xs shrink-0"><i class="fa-solid fa-water text-gold"></i><span>CHỈ BÁO</span></div>
+            <div class="flex flex-wrap gap-2 flex-1" id="indicator-buttons"></div>
+        </div>
+
+        <!-- KPI ROW -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="kpi-container"></div>
+
+        <!-- TABS -->
+        <div class="bg-surface border border-default p-1 flex gap-1 rounded-lg w-fit">
+            <button data-tab="list" class="tab-btn px-4 py-2 rounded-md text-sm font-medium transition-colors bg-primary text-white"><i class="fa-solid fa-list mr-2"></i>Danh sách mã</button>
+            <button data-tab="alloc" class="tab-btn px-4 py-2 rounded-md text-sm font-medium transition-colors text-txtmuted hover:text-white"><i class="fa-solid fa-coins mr-2"></i>Phân bổ vốn</button>
+        </div>
+
+        <!-- TAB CONTENT: DANH SÁCH -->
+        <div id="content-list" class="content-section bg-surface border border-default rounded-xl overflow-hidden">
+            <div class="p-3 border-b border-default flex flex-col md:flex-row justify-between gap-3 bg-elevated">
+                <div class="flex items-center gap-2 text-xs flex-wrap"><span class="text-txtsecondary">Nhóm:</span><div class="flex gap-1" id="group-filters"></div></div>
+                <div class="flex items-center gap-2 text-xs">
+                    <input type="checkbox" id="active-only-cb" class="accent-primary w-4 h-4 rounded">
+                    <label for="active-only-cb" class="text-txtsecondary cursor-pointer">Chỉ mã chạm ≤ <span id="active-days-label" class="text-gold font-bold">30</span> ngày</label>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table id="list-table">
+                    <thead class="bg-surface sticky top-0 z-10">
+                        <tr>
+                            <th class="w-8 text-center"></th>
+                            <th data-sort="ticker">Mã <i class="fa-solid fa-sort ml-1"></i></th>
+                            <th data-sort="count" class="text-center">Số lần chạm <i class="fa-solid fa-sort ml-1"></i></th>
+                            <th data-sort="days_since_last" class="text-center">Lần cuối <i class="fa-solid fa-sort ml-1"></i></th>
+                            <th data-sort="win_rate" class="text-center">Win rate 60d <i class="fa-solid fa-sort ml-1"></i></th>
+                            <th data-sort="avg_max_gain" class="text-center">Max gain TB <i class="fa-solid fa-sort ml-1"></i></th>
+                            <th data-sort="avg_max_dd" class="text-center">Max DD TB <i class="fa-solid fa-sort ml-1"></i></th>
+                            <th data-sort="half_kelly" class="text-center">Half-Kelly <i class="fa-solid fa-sort ml-1"></i></th>
+                        </tr>
+                    </thead>
+                    <tbody id="list-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB CONTENT: PHÂN BỔ VỐN -->
+        <div id="content-alloc" class="content-section hide bg-surface border border-default rounded-xl p-4 space-y-4"></div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        const state = {
+            data: null, indicator: 'SMA1250', recentDays: 30, view: 'list',
+            listSort: { key: 'days_since_last', order: 'asc' }, expanded: new Set(),
+            groupFilter: 'all', onlyActive: false,
+            capital: localStorage.getItem('sma_capital') ? parseInt(localStorage.getItem('sma_capital')) : 100000000,
+            allocMethod: 'kelly'
+        };
+        const INDICATORS = ['SMA1250', 'SMA1000', 'SMA400', 'EMA400', 'SMA250', 'SMA200'];
+        const GROUPS = ['Tất cả', 'Ngân hàng', 'Chứng khoán', 'Bất động sản', 'Thép', 'Bán lẻ & Tiêu dùng', 'Công nghệ', 'Khác'];
+
+        async function initApp() {
+            try {
+                // Fetch JSON từ cùng thư mục root với Index.html
+                const response = await fetch('./backtest_results.json');
+                if (!response.ok) throw new Error('Không có dữ liệu');
+                state.data = await response.json();
+                document.getElementById('update-time').innerText = new Date(state.data.generated_at).toLocaleString('vi-VN');
+                setupEventListeners(); renderAll();
+            } catch (error) {
+                document.getElementById('list-tbody').innerHTML = `<tr><td colspan="9" class="text-center py-10 text-loss">Chưa có dữ liệu hoặc lỗi kết nối.</td></tr>`;
+            }
+        }
+
+        function renderAll() {
+            document.getElementById('header-ind-name').innerText = state.indicator;
+            document.getElementById('active-days-label').innerText = state.recentDays;
+            
+            document.getElementById('indicator-buttons').innerHTML = INDICATORS.map(ind => `
+                <button onclick="setIndicator('${ind}')" class="px-3 py-1.5 rounded text-xs transition-colors ${state.indicator === ind ? 'bg-gold text-base font-extrabold' : 'bg-elevated text-txtsecondary hover:bg-strong'}">${ind}</button>
+            `).join('');
+
+            renderKPIs();
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = btn.dataset.tab === state.view 
+                    ? "tab-btn px-4 py-2 rounded-md text-sm font-medium transition-colors bg-primary text-white" 
+                    : "tab-btn px-4 py-2 rounded-md text-sm font-medium transition-colors text-txtmuted hover:text-white";
+            });
+            
+            document.querySelectorAll('.content-section').forEach(el => el.classList.add('hide'));
+            document.getElementById(`content-${state.view}`).classList.remove('hide');
+
+            if(state.view === 'list') renderListTab();
+            if(state.view === 'alloc') renderAllocTab();
+        }
+
+        function renderKPIs() {
+            const stocks = state.data?.indicators[state.indicator]?.stocks || [];
+            let tTouch = 0, aCount = 0, tWin = 0, sGain = 0, sDD = 0, cStats = 0;
+            stocks.forEach(s => {
+                if(s.stats) {
+                    tTouch += s.stats.count;
+                    if(s.stats.days_since_last <= state.recentDays) aCount++;
+                    tWin += s.stats.win_rate; sGain += s.stats.avg_max_gain; sDD += s.stats.avg_max_dd; cStats++;
+                }
+            });
+            const aWR = cStats ? (tWin/cStats).toFixed(1) : 0;
+            
+            document.getElementById('kpi-container').innerHTML = `
+                <div class="bg-surface border border-default p-4 rounded-xl flex gap-3"><div class="w-10 h-10 rounded-lg flex items-center justify-center text-info bg-info/10"><i class="fa-solid fa-hand-pointer"></i></div><div><div class="text-[10px] text-txtmuted">TỔNG CHẠM</div><div class="text-xl font-bold">${tTouch}</div></div></div>
+                <div class="bg-surface border border-default p-4 rounded-xl flex gap-3"><div class="w-10 h-10 rounded-lg flex items-center justify-center text-profit bg-profit/10"><i class="fa-solid fa-bolt"></i></div><div class="flex-1"><div class="text-[10px] text-txtmuted flex items-center gap-1">CHẠM TRONG <input type="number" id="kpi-days-input" value="${state.recentDays}" class="w-8 bg-elevated border border-default text-gold text-center rounded"> NGÀY</div><div class="text-xl font-bold">${aCount}</div></div></div>
+                <div class="bg-surface border border-default p-4 rounded-xl flex gap-3"><div class="w-10 h-10 rounded-lg flex items-center justify-center text-primary bg-primary/10"><i class="fa-solid fa-bullseye"></i></div><div><div class="text-[10px] text-txtmuted">WIN RATE (60D)</div><div class="text-xl font-bold ${aWR>=50?'text-profit':'text-loss'}">${aWR}%</div></div></div>
+                <div class="bg-surface border border-default p-4 rounded-xl flex gap-3"><div class="w-10 h-10 rounded-lg flex items-center justify-center text-warning bg-warning/10"><i class="fa-solid fa-arrow-trend-up"></i></div><div><div class="text-[10px] text-txtmuted">MAX GAIN/DD TB</div><div class="text-xl font-bold"><span class="text-profit">+${cStats?(sGain/cStats).toFixed(1):0}%</span> / <span class="text-loss">${cStats?(sDD/cStats).toFixed(1):0}%</span></div></div></div>
+            `;
+            document.getElementById('kpi-days-input')?.addEventListener('change', e => { state.recentDays = parseInt(e.target.value)||30; renderAll(); });
+        }
+
+        function renderListTab() {
+            document.getElementById('group-filters').innerHTML = GROUPS.map(g => `<button onclick="state.groupFilter='${g==='Tất cả'?'all':g}'; renderListTab()" class="px-2 py-0.5 rounded ${state.groupFilter===(g==='Tất cả'?'all':g)?'bg-primary text-white':'bg-input text-txtmuted'}">${g}</button>`).join('');
+            document.getElementById('active-only-cb').checked = state.onlyActive;
+
+            let stocks = (state.data?.indicators[state.indicator]?.stocks || []).filter(s => s.stats && s.stats.count > 0);
+            if(state.groupFilter !== 'all') stocks = stocks.filter(s => s.group === state.groupFilter);
+            if(state.onlyActive) stocks = stocks.filter(s => s.stats.days_since_last <= state.recentDays);
+
+            stocks.sort((a, b) => {
+                let vA = state.listSort.key==='ticker' ? a.ticker : a.stats[state.listSort.key]||0;
+                let vB = state.listSort.key==='ticker' ? b.ticker : b.stats[state.listSort.key]||0;
+                if(vA < vB) return state.listSort.order==='asc'?-1:1;
+                if(vA > vB) return state.listSort.order==='asc'?1:-1;
+                return 0;
+            });
+
+            const tbody = document.getElementById('list-tbody');
+            tbody.innerHTML = stocks.map(s => {
+                const isExp = state.expanded.has(s.ticker);
+                const dsl = s.stats.days_since_last;
+                const dslC = dsl<=state.recentDays?'text-profit font-bold':dsl<=state.recentDays*2?'text-warning':'text-txtsecondary';
+                const hk = s.stats.half_kelly > 0 ? `<span class="bg-[#2962ff26] border border-primary text-[#64b5f6] px-2 py-0.5 rounded text-xs">${s.stats.half_kelly}%</span>` : `—`;
+                
+                let html = `<tr class="hover:bg-elevated cursor-pointer" onclick="toggleExpand('${s.ticker}')">
+                    <td class="text-center text-txtmuted"><i class="fa-solid fa-chevron-${isExp?'up':'down'}"></i></td>
+                    <td><div class="font-bold text-txtprimary">${s.ticker}</div><div class="text-[10px] text-primary">${s.group}</div></td>
+                    <td class="text-center font-mono">${s.stats.count}</td>
+                    <td class="text-center"><div class="${dslC}">${dsl} ngày</div></td>
+                    <td class="text-center font-mono font-bold ${s.stats.win_rate>=50?'text-profit':'text-loss'}">${s.stats.win_rate}%</td>
+                    <td class="text-center font-mono font-bold text-profit">+${s.stats.avg_max_gain}%</td>
+                    <td class="text-center font-mono font-bold text-loss">${s.stats.avg_max_dd}%</td>
+                    <td class="text-center">${hk}</td>
+                </tr>`;
+
+                if(isExp) {
+                    html += `<tr><td colspan="9" class="p-0 border-b border-default"><div class="bg-base p-4 shadow-inner border-l-2 border-primary">
+                        <div class="max-h-72 overflow-y-auto border border-strong rounded bg-surface"><table class="w-full text-xs">
+                        <thead class="bg-elevated sticky top-0"><tr><th>Ngày chạm</th><th class="text-right">Giá</th><th class="text-center">+60d</th><th class="text-right">Max Gain</th><th class="text-right">Max DD</th></tr></thead>
+                        <tbody>${s.touches.map(t => `<tr class="border-b border-strong">
+                            <td>${t.date}${t.ongoing?'<span class="bg-primary text-white text-[9px] px-1 rounded ml-1">ON</span>':''}</td>
+                            <td class="text-right font-mono">${t.price_at_touch.toLocaleString()}</td>
+                            <td class="text-center font-mono ${t.perf_60d>0?'text-profit':'text-loss'}">${t.perf_60d||'—'}%</td>
+                            <td class="text-right font-mono text-profit">+${t.max_gain}% (${t.max_gain_day}d)</td>
+                            <td class="text-right font-mono text-loss">${t.max_dd}% (${t.max_dd_day}d)</td>
+                        </tr>`).join('')}</tbody></table></div>
+                    </div></td></tr>`;
+                }
+                return html;
+            }).join('') || `<tr><td colspan="9" class="text-center py-8 text-txtmuted">Không có mã khớp điều kiện.</td></tr>`;
+        }
+
+        function renderAllocTab() {
+            const fmt = new Intl.NumberFormat('vi-VN');
+            const stocks = (state.data?.indicators[state.indicator]?.stocks || []).filter(s => s.stats && s.stats.half_kelly > 0);
+            let tKelly = stocks.reduce((sum, s) => sum + s.stats.half_kelly, 0);
+            
+            document.getElementById('content-alloc').innerHTML = `
+                <div class="bg-surface border border-default p-4 rounded-xl flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-full bg-[#26a69a26] text-profit flex items-center justify-center text-xl"><i class="fa-solid fa-wallet"></i></div>
+                    <div><div class="text-[10px] text-txtmuted">VỐN (VNĐ)</div><input type="number" id="capital-input" value="${state.capital}" class="bg-input border border-strong rounded px-2 py-1 text-gold font-bold font-mono"></div>
+                </div>
+                <div class="overflow-x-auto border border-strong rounded"><table class="w-full text-xs">
+                    <thead class="bg-elevated"><tr><th>Mã</th><th class="text-center">Half-Kelly</th><th>Trọng số</th><th class="text-right">Vốn gợi ý</th></tr></thead>
+                    <tbody>${stocks.map(s => {
+                        const wPct = state.allocMethod === 'kelly' ? (s.stats.half_kelly/tKelly*100) : (100/stocks.length);
+                        return `<tr class="border-b border-strong">
+                            <td><div class="font-bold">${s.ticker}</div></td>
+                            <td class="text-center font-mono">${s.stats.half_kelly}%</td>
+                            <td><div class="flex items-center gap-2"><div class="w-16 h-1.5 bg-input rounded overflow-hidden"><div class="h-full bg-info" style="width:${Math.min(100,wPct*3)}%"></div></div><span class="font-mono font-bold">${wPct.toFixed(1)}%</span></div></td>
+                            <td class="text-right font-mono text-profit font-bold">${fmt.format(Math.round(wPct/100*state.capital))} đ</td>
+                        </tr>`;
+                    }).join('') || '<tr><td colspan="4" class="text-center py-4">Không có mã đủ điều kiện.</td></tr>'}</tbody>
+                </table></div>
+            `;
+            document.getElementById('capital-input')?.addEventListener('change', e => { state.capital = parseInt(e.target.value)||0; localStorage.setItem('sma_capital', state.capital); renderAllocTab(); });
+        }
+
+        function setupEventListeners() {
+            document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => { state.view = b.dataset.tab; renderAll(); }));
+            document.querySelectorAll('th[data-sort]').forEach(th => th.addEventListener('click', () => {
+                if(state.listSort.key === th.dataset.sort) state.listSort.order = state.listSort.order==='asc'?'desc':'asc';
+                else { state.listSort.key = th.dataset.sort; state.listSort.order = 'desc'; }
+                renderListTab();
+            }));
+            document.getElementById('active-only-cb')?.addEventListener('change', e => { state.onlyActive = e.target.checked; renderListTab(); });
+        }
+        function setIndicator(ind) { state.indicator = ind; state.expanded.clear(); renderAll(); }
+        function toggleExpand(tk) { state.expanded.has(tk) ? state.expanded.delete(tk) : state.expanded.add(tk); renderListTab(); }
+        
+        initApp();
+    </script>
+</body>
+</html>
