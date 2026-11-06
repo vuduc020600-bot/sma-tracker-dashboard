@@ -12,22 +12,18 @@ DATA_DIR = "./data"
 OUTPUT_JSON = "./backtest_results.json"
 
 STOCKS_LIST = [
-    "VCB", "BID", "CTG", "MBB", "TCB", "VPB", "ACB", "STB",
-    "SSI", "VND", "VCI", "HCM", "SHS",
-    "HPG", "HSG", "NKG",
-    "VHM", "VIC", "VRE", "NVL", "DIG", "DXG", "VGC",
-    "MWG", "PNJ", "MSN", "VNM", "SAB",
-    "FPT", "CTR"
+    # 1. Ngân hàng
+    "ACB", "BID", "CTG", "EIB", "HDB", "LPB", "MBB", "MSB", "NAB", 
+    "OCB", "SHB", "SSB", "STB", "TCB", "TPB", "VCB", "VIB", "VPB", "BAB",
+    # 2. Khác
+    "GAS", "HCM", "EVF", "SSI", "VCI", "VIX", "VND"
 ]
 
 STOCK_GROUPS = {
-    "Ngân hàng": ["VCB", "BID", "CTG", "MBB", "TCB", "VPB", "ACB", "STB"],
-    "Chứng khoán": ["SSI", "VND", "VCI", "HCM", "SHS"],
-    "Thép": ["HPG", "HSG", "NKG"],
-    "Bất động sản": ["VHM", "VIC", "VRE", "NVL", "DIG", "DXG", "VGC"],
-    "Bán lẻ & Tiêu dùng": ["MWG", "PNJ", "MSN", "VNM", "SAB"],
-    "Công nghệ": ["FPT", "CTR"]
+    "Ngân hàng": ["ACB", "BID", "CTG", "EIB", "HDB", "LPB", "MBB", "MSB", "NAB", "OCB", "SHB", "SSB", "STB", "TCB", "TPB", "VCB", "VIB", "VPB", "BAB"],
+    "Khác": ["GAS", "HCM", "EVF", "SSI", "VCI", "VIX", "VND"]
 }
+
 
 INDICATORS_CONFIG = {
     'SMA1250': {'type': 'sma', 'period': 1250},
@@ -175,6 +171,12 @@ def main():
     all_data = {}
     for file_name in [f for f in os.listdir(DATA_DIR) if f.endswith('.csv')]:
         try:
+            stock_symbol = file_name.replace('.csv', '')
+            
+            # Bỏ qua các file CSV của mã cổ phiếu không có trong danh sách hiện tại
+            if stock_symbol not in STOCKS_LIST:
+                continue
+                
             df = pd.read_csv(f"{DATA_DIR}/{file_name}")
             if len(df) < 10: continue
             df.columns = [str(c).strip().lower() for c in df.columns]
@@ -183,7 +185,7 @@ def main():
             df = df.sort_index().dropna(subset=['close'])
             for col in ['open', 'high', 'low', 'close', 'volume']:
                 if col in df.columns: df[col] = pd.to_numeric(df[col], errors='coerce')
-            all_data[file_name.replace('.csv', '')] = df[df['volume'] > 0]
+            all_data[stock_symbol] = df[df['volume'] > 0]
         except Exception as e: pass
             
     result = {"generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "tickers_count": len(all_data), "indicators": {}}
