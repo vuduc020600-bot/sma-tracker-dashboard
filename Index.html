@@ -170,13 +170,16 @@ table td, table th { font-variant-numeric: tabular-nums; }
 <button onclick="setView('alloc')" id="btn-alloc" class="px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5">
 <i class="fas fa-coins text-[10px]"></i> Phân bổ vốn
 </button>
+<button onclick="setView('backtest')" id="btn-backtest" class="px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5">
+<i class="fas fa-history text-[10px]"></i> Cỗ máy thời gian
+</button>
 </div>
 
 <div id="content"></div>
 
 <script>
 /* ============================================================
-DATA (Fetch from real JSON)
+DATA
 ============================================================ */
 let ALL_DATA = null;
 const INDICATORS = ['SMA1250', 'SMA1000', 'SMA400', 'EMA400', 'SMA250', 'SMA200'];
@@ -191,8 +194,16 @@ if (v >= 1e6) return (v / 1e6).toFixed(0) + ' tr';
 return v.toLocaleString() + ' đ';
 }
 
+const infoTip = (text, align = 'center') => `
+<span class="group relative inline-flex items-center ml-1 align-middle cursor-pointer">
+  <i class="fas fa-info-circle text-[10px] text-slate-500 group-hover:text-sky-400 transition-colors" title="${text}"></i>
+  <span class="pointer-events-none absolute top-full ${align === 'right' ? 'right-0' : align === 'left' ? 'left-0' : 'left-1/2 -translate-x-1/2'} mt-1 hidden group-hover:block w-48 p-2 bg-slate-800 text-slate-200 text-[10px] rounded shadow-2xl border border-slate-700 z-50 normal-case font-normal leading-relaxed text-left whitespace-normal">
+    ${text}
+  </span>
+</span>`;
+
 /* ============================================================
-AGGREGATION LOGIC (Real Data)
+AGGREGATION LOGIC
 ============================================================ */
 function aggregateIndicator(ind) {
 const indData = ALL_DATA?.indicators?.[ind];
@@ -244,7 +255,7 @@ STATE
 ============================================================ */
 const state = {
 indicator: 'SMA1250',
-touchMode: 'intraday', // 'intraday' hoặc 'close'
+touchMode: 'intraday',
 recentDays: 30,
 view: 'list',
 sortKey: 'lastTouch', sortOrder: 'desc',
@@ -258,6 +269,7 @@ aggregateMinStrong: 1,
 aggregateSortBy: 'totalKelly',
 approachThreshold: 3.0,
 approachDirection: 'all',
+backtestTf: '2Y'
 };
 
 const $ = id => document.getElementById(id);
@@ -265,7 +277,7 @@ const $ = id => document.getElementById(id);
 function currentStocks() { 
 const indData = ALL_DATA?.indicators?.[state.indicator];
 if (!indData) return [];
-if (indData.stocks) return indData.stocks; // Tương thích ngược file JSON cũ
+if (indData.stocks) return indData.stocks; 
 return indData[state.touchMode] || []; 
 }
 
@@ -287,7 +299,6 @@ if (indData) {
 let stocks = [];
 if (indData.stocks) stocks = indData.stocks;
 else stocks = [...(indData.close || []), ...(indData.intraday || [])];
-
 stocks.forEach(s => { tempStocks.add(s.ticker); STOCK_GROUPS_META[s.ticker] = s.group || 'Khác'; });
 }
 });
@@ -317,7 +328,7 @@ btnIntraday.className = `px-3 py-1.5 text-xs font-bold rounded transition-all ${
 btnClose.className = `px-3 py-1.5 text-xs font-bold rounded transition-all ${state.touchMode === 'close' ? 'bg-sky-600 text-white' : 'text-slate-500 hover:text-white'}`;
 }
 
-['list', 'approach', 'alloc'].forEach(v => {
+['list', 'approach', 'alloc', 'backtest'].forEach(v => {
 const btn = $(`btn-${v}`);
 if (btn) btn.className = 'px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 text-slate-500 hover:text-white';
 });
@@ -325,11 +336,13 @@ $(`btn-${state.view}`).className = 'px-4 py-1.5 text-xs font-bold rounded-md tra
 
 const approachCount = currentStocks().filter(s => s.distance_abs_pct !== null && s.distance_abs_pct <= state.approachThreshold).length;
 const badge = $('approach-badge');
+if (badge) {
 if (approachCount > 0) { badge.textContent = approachCount; badge.classList.remove('hidden'); }
 else { badge.classList.add('hidden'); }
+}
 
 renderKPIs();
-$('content').innerHTML = state.view === 'list' ? renderList() : state.view === 'approach' ? renderApproach() : renderAlloc();
+$('content').innerHTML = state.view === 'list' ? renderList() : state.view === 'approach' ? renderApproach() : state.view === 'alloc' ? renderAlloc() : renderBacktest();
 }
 
 function renderKPIs() {
@@ -702,15 +715,6 @@ tickerPicks.sort((a, b) => b.best.score - a.best.score);
 const totalKelly = tickerPicks.reduce((a, t) => a + t.best.score, 0);
 const totalSuggested = Math.min(100, totalKelly);
 
-// Helper tạo icon info kèm tooltip khi rê chuột vào
-const infoTip = (text, align = 'center') => `
-<span class="group relative inline-flex items-center ml-1 align-middle cursor-pointer">
-  <i class="fas fa-info-circle text-[10px] text-slate-500 group-hover:text-sky-400 transition-colors" title="${text}"></i>
-  <span class="pointer-events-none absolute top-full ${align === 'right' ? 'right-0' : align === 'left' ? 'left-0' : 'left-1/2 -translate-x-1/2'} mt-1 hidden group-hover:block w-48 p-2 bg-slate-800 text-slate-200 text-[10px] rounded shadow-2xl border border-slate-700 z-50 normal-case font-normal leading-relaxed text-left whitespace-normal">
-    ${text}
-  </span>
-</span>`;
-
 return `
 <div class="space-y-4">
 <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
@@ -814,6 +818,132 @@ return `<tr class="table-row border-b border-slate-800">
 }
 
 /* ============================================================
+VIEW: BACKTEST
+============================================================ */
+function renderBacktest() {
+if (!ALL_DATA.walk_forward || Object.keys(ALL_DATA.walk_forward).length === 0) {
+    return `<div class="text-center py-10 text-slate-500">Chưa có dữ liệu Backtest. Vui lòng bấm Đồng bộ ngay để tạo dữ liệu.</div>`;
+}
+
+const wfData = ALL_DATA.walk_forward[state.backtestTf];
+if (!wfData) return ``;
+
+const p_kelly = wfData.kelly_portfolio;
+const p_top3 = wfData.hindsight_top_3;
+
+return `
+<div class="space-y-6">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap items-end gap-6">
+        <div>
+            <label class="block text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">Quay ngược thời gian về</label>
+            <div class="flex gap-1 bg-slate-950 border border-slate-800 p-1 rounded-lg">
+                ${['1Y', '2Y', '3Y', '4Y'].map(tf => `
+                    <button onclick="state.backtestTf='${tf}';render()" class="px-4 py-1.5 text-xs font-bold rounded ${state.backtestTf === tf ? 'bg-violet-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">${tf}</button>
+                `).join('')}
+            </div>
+            <div class="text-[10px] text-sky-400 mt-2 font-mono"><i class="fas fa-calendar-check mr-1"></i>Mốc cắt quá khứ: ${wfData.snapshot_date}</div>
+        </div>
+        <div class="text-xs text-slate-400 italic max-w-lg mb-2">
+            Hệ thống dùng toàn bộ dữ liệu từ năm 2000 đến đúng ngày <b class="text-slate-200">${wfData.snapshot_date}</b> để chọn danh mục Half-Kelly (SMA1250 Intraday). Sau đó đo hiệu suất thực tế từ lúc đó đến hiện tại.
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Cột 1: Kelly -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-800 bg-slate-950/50 flex items-center justify-between">
+                <div>
+                    <h2 class="text-sm font-bold text-white"><i class="fas fa-brain text-violet-400 mr-2"></i>Đề xuất của Half-Kelly</h2>
+                    <p class="text-[10px] text-slate-500 mt-0.5">Danh mục chọn TỰ ĐỘNG theo mốc quá khứ</p>
+                </div>
+            </div>
+            
+            <div class="p-4 grid grid-cols-2 gap-3 mb-2 border-b border-slate-800">
+                <div>
+                    <div class="text-[10px] text-slate-500 uppercase">Lợi nhuận NAV thực tế</div>
+                    <div class="text-2xl font-bold ${p_kelly.total_perf >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${fmtPct(p_kelly.total_perf)}</div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-slate-500 uppercase">Rủi ro (Max DD ước tính)</div>
+                    <div class="text-2xl font-bold text-rose-400">${fmtPct(p_kelly.approx_max_dd)}</div>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto scrollbar max-h-[400px]">
+                <table class="w-full text-left text-xs">
+                    <thead class="text-[10px] uppercase text-slate-500 border-b border-slate-800 sticky top-0 bg-slate-900">
+                        <tr>
+                            <th class="py-2 px-4">Mã CK</th>
+                            <th class="py-2 px-4 text-center">Tỷ trọng vốn</th>
+                            <th class="py-2 px-4 text-right">Lãi/Lỗ thực tế</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${p_kelly.holdings.map(h => `
+                        <tr class="border-b border-slate-800 hover:bg-white/5">
+                            <td class="py-2.5 px-4 font-bold text-white">${h.ticker}</td>
+                            <td class="py-2.5 px-4 text-center text-violet-300 font-mono">${h.weight_pct.toFixed(1)}%</td>
+                            <td class="py-2.5 px-4 text-right ${h.perf >= 0 ? 'text-emerald-400' : 'text-rose-400'} font-bold">${fmtPct(h.perf)}</td>
+                        </tr>
+                        `).join('')}
+                        ${p_kelly.holdings.length === 0 ? `<tr><td colspan="3" class="py-6 text-center text-slate-500">Mô hình chọn Cầm 100% Tiền Mặt</td></tr>` : ''}
+                        ${p_kelly.allocated_pct < 100 && p_kelly.holdings.length > 0 ? `
+                        <tr class="border-b border-slate-800 hover:bg-white/5">
+                            <td class="py-2.5 px-4 text-slate-500 italic">Tiền mặt</td>
+                            <td class="py-2.5 px-4 text-center text-slate-500 font-mono">${(100 - p_kelly.allocated_pct).toFixed(1)}%</td>
+                            <td class="py-2.5 px-4 text-right text-slate-500 font-mono">0%</td>
+                        </tr>
+                        ` : ''}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Cột 2: Hindsight -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden relative">
+            <div class="px-4 py-3 border-b border-slate-800 bg-slate-950/50">
+                <h2 class="text-sm font-bold text-white"><i class="fas fa-eye text-sky-400 mr-2"></i>Góc nhìn Tương Lai (Hindsight)</h2>
+                <p class="text-[10px] text-slate-500 mt-0.5">Top 3 mã tăng mạnh nhất thực tế</p>
+            </div>
+
+            <div class="p-4 grid grid-cols-2 gap-3 mb-2 border-b border-slate-800">
+                <div>
+                    <div class="text-[10px] text-slate-500 uppercase">Nếu All-in Top 1 (Lợi nhuận)</div>
+                    <div class="text-2xl font-bold text-emerald-400">${p_top3.length > 0 ? fmtPct(p_top3[0].perf) : '0%'}</div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-slate-500 uppercase">Khả năng đoán trúng trước</div>
+                    <div class="text-2xl font-bold text-rose-400">0%</div>
+                </div>
+            </div>
+
+            <table class="w-full text-left text-xs">
+                <thead class="text-[10px] uppercase text-slate-500 border-b border-slate-800">
+                    <tr>
+                        <th class="py-2 px-4">Hạng</th>
+                        <th class="py-2 px-4">Mã CK</th>
+                        <th class="py-2 px-4 text-right">Lãi/Lỗ thực tế</th>
+                        <th class="py-2 px-4 text-right">Max Drawdown</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${p_top3.map((t, i) => `
+                    <tr class="border-b border-slate-800 hover:bg-white/5 ${i === 0 ? 'bg-amber-950/20' : ''}">
+                        <td class="py-2.5 px-4 ${i === 0 ? 'text-amber-400' : 'text-slate-400'}">${i === 0 ? '🏆 #1' : i === 1 ? '🥈 #2' : '🥉 #3'}</td>
+                        <td class="py-2.5 px-4 font-bold text-white">${t.ticker}</td>
+                        <td class="py-2.5 px-4 text-right ${t.perf >= 0 ? 'text-emerald-400' : 'text-rose-400'} font-bold">${fmtPct(t.perf)}</td>
+                        <td class="py-2.5 px-4 text-right text-rose-400 font-mono">${fmtPct(t.max_dd)}</td>
+                    </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+`;
+}
+
+/* ============================================================
 CONTROLS & MANUAL TRIGGER
 ============================================================ */
 function setIndicator(ind) {
@@ -853,8 +983,8 @@ async function triggerManualRun() {
     icon.classList.add('fa-spin');
     btn.innerHTML = `<i class="fas fa-sync-alt fa-spin"></i> Đang ra lệnh...`;
 
-    // Thay chuỗi bên dưới bằng Personal Access Token (bắt đầu bằng ghp_...)
-    const GITHUB_TOKEN = "ghp_dien_token_that_cua_anh_vao_day"; 
+    // !!! ĐIỀN TOKEN GITHUB CỦA ANH VÀO DÒNG DƯỚI ĐÂY !!!
+    const GITHUB_TOKEN = "ĐIỀN_TOKEN_CỦA_ANH_VÀO_ĐÂY"; 
     
     const OWNER = "vuduc020600-bot";
     const REPO = "sma-tracker-dashboard";
