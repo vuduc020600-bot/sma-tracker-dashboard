@@ -702,6 +702,15 @@ tickerPicks.sort((a, b) => b.best.score - a.best.score);
 const totalKelly = tickerPicks.reduce((a, t) => a + t.best.score, 0);
 const totalSuggested = Math.min(100, totalKelly);
 
+// Helper tạo icon info kèm tooltip khi rê chuột vào
+const infoTip = (text, align = 'center') => `
+<span class="group relative inline-flex items-center ml-1 align-middle cursor-pointer">
+  <i class="fas fa-info-circle text-[10px] text-slate-500 group-hover:text-sky-400 transition-colors" title="${text}"></i>
+  <span class="pointer-events-none absolute top-full ${align === 'right' ? 'right-0' : align === 'left' ? 'left-0' : 'left-1/2 -translate-x-1/2'} mt-1 hidden group-hover:block w-48 p-2 bg-slate-800 text-slate-200 text-[10px] rounded shadow-2xl border border-slate-700 z-50 normal-case font-normal leading-relaxed text-left whitespace-normal">
+    ${text}
+  </span>
+</span>`;
+
 return `
 <div class="space-y-4">
 <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
@@ -722,12 +731,12 @@ return `
 <table class="w-full text-left border-collapse min-w-max">
 <thead><tr class="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800 bg-slate-950/50">
 <th class="py-2.5 px-3">#</th><th class="py-2.5 px-3">Chỉ báo</th>
-<th class="py-2.5 px-2 text-center">Mã dương</th>
-<th class="py-2.5 px-2 text-center">Coverage</th>
-<th class="py-2.5 px-2 text-center">Avg Kelly</th>
-<th class="py-2.5 px-2 text-center">Avg Win Rate</th>
-<th class="py-2.5 px-2 text-center">Total Kelly</th>
-<th class="py-2.5 px-2">Best pick</th>
+<th class="py-2.5 px-2 text-center">Mã dương ${infoTip('Số lượng mã đạt kỳ vọng sinh lời dương (Half-Kelly > 0) trên tổng số mã')}</th>
+<th class="py-2.5 px-2 text-center">Coverage ${infoTip('Độ phủ thị trường (% mã có lợi thế). Càng cao chứng tỏ chỉ báo phù hợp với đa số cổ phiếu')}</th>
+<th class="py-2.5 px-2 text-center">Avg Kelly ${infoTip('Tỷ lệ vốn đề xuất bình quân mỗi mã. Càng cao thể hiện xác suất thắng và R:R càng tốt')}</th>
+<th class="py-2.5 px-2 text-center">Avg Win Rate ${infoTip('Tỷ lệ % các lần chạm có lãi sau 60 phiên, tính trung bình tất cả các mã')}</th>
+<th class="py-2.5 px-2 text-center">Total Kelly ${infoTip('Tổng dung lượng vốn đề xuất của cả danh mục. Phản ánh tổng cơ hội giải ngân', 'right')}</th>
+<th class="py-2.5 px-2">Best pick ${infoTip('Mã cổ phiếu tối ưu nhất với chỉ báo này', 'right')}</th>
 </tr></thead>
 <tbody class="text-xs">
 ${indStats.map((s, i) => {
@@ -771,13 +780,13 @@ ${[1, 2, 3].map(n => `<button onclick="state.aggregateMinStrong=${n};render()" c
 <table class="w-full text-left border-collapse min-w-max">
 <thead><tr class="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800 bg-slate-950/50">
 <th class="py-2.5 px-3">#</th><th class="py-2.5 px-3">Mã</th>
-<th class="py-2.5 px-2 text-center">Chỉ báo chọn</th>
-<th class="py-2.5 px-2 text-center">Half-Kelly</th>
-<th class="py-2.5 px-2 text-center">Win rate</th>
-<th class="py-2.5 px-2 text-center">Đồng thuận</th>
+<th class="py-2.5 px-2 text-center">Chỉ báo chọn ${infoTip('Chỉ báo mang lại lợi thế toán học cao nhất cho mã này')}</th>
+<th class="py-2.5 px-2 text-center">Half-Kelly ${infoTip('Tỷ lệ phân bổ vốn đề xuất theo công thức Kelly tối ưu')}</th>
+<th class="py-2.5 px-2 text-center">Win rate ${infoTip('Xác suất có lãi sau 60 phiên của mã này')}</th>
+<th class="py-2.5 px-2 text-center">Đồng thuận ${infoTip('Số lượng chỉ báo (trên 6) cùng cho tín hiệu khả quan')}</th>
 <th class="py-2.5 px-2">Chỉ báo khác</th>
-<th class="py-2.5 px-2 text-right">Trọng số</th>
-<th class="py-2.5 px-2 text-right">Vốn gợi ý</th>
+<th class="py-2.5 px-2 text-right">Trọng số ${infoTip('Tỷ trọng giải ngân tương đối trong toàn bộ danh mục', 'right')}</th>
+<th class="py-2.5 px-2 text-right">Vốn gợi ý ${infoTip('Số tiền thực tế giải ngân theo quy mô vốn đã nhập', 'right')}</th>
 </tr></thead>
 <tbody class="text-xs">
 ${tickerPicks.length === 0 ? `<tr><td colspan="9" class="py-8 text-center text-slate-500 italic">Không có mã nào đủ điều kiện đồng thuận ≥${state.aggregateMinStrong} chỉ báo.</td></tr>` :
@@ -844,8 +853,8 @@ async function triggerManualRun() {
     icon.classList.add('fa-spin');
     btn.innerHTML = `<i class="fas fa-sync-alt fa-spin"></i> Đang ra lệnh...`;
 
-    // !!! ĐIỀN TOKEN GITHUB CỦA ANH VÀO DÒNG DƯỚI ĐÂY !!!
-    const GITHUB_TOKEN = "020600"; 
+    // Thay chuỗi bên dưới bằng Personal Access Token (bắt đầu bằng ghp_...)
+    const GITHUB_TOKEN = "ghp_dien_token_that_cua_anh_vao_day"; 
     
     const OWNER = "vuduc020600-bot";
     const REPO = "sma-tracker-dashboard";
