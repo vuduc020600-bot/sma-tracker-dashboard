@@ -13,7 +13,7 @@ OUTPUT_JSON = "./backtest_results.json"
 
 STOCKS_LIST = [
     # 1. Ngân hàng
-    "ACB", "BID", "CTG", "EIB", "HDB", "LPB", "MBB", "MSB", "NAB", 
+    "ACB", "BID", "CTG", "EIB", "HDB", "LPB", "MBB", "MSB", "NAB",
     "OCB", "SHB", "SSB", "STB", "TCB", "TPB", "VCB", "VIB", "VPB", "BAB",
     # 2. Khác
     "GAS", "HCM", "EVF", "SSI", "VCI", "VIX", "VND"
@@ -23,7 +23,6 @@ STOCK_GROUPS = {
     "Ngân hàng": ["ACB", "BID", "CTG", "EIB", "HDB", "LPB", "MBB", "MSB", "NAB", "OCB", "SHB", "SSB", "STB", "TCB", "TPB", "VCB", "VIB", "VPB", "BAB"],
     "Khác": ["GAS", "HCM", "EVF", "SSI", "VCI", "VIX", "VND"]
 }
-
 
 INDICATORS_CONFIG = {
     'SMA1250': {'type': 'sma', 'period': 1250},
@@ -68,20 +67,20 @@ def detect_touches(df, ma_series):
     touches = []
     valid_indices = df.index[ma_series.notna()]
     if len(valid_indices) < 2: return touches
-        
+
     for i in range(1, len(df)):
         current_date = df.index[i]
         ma = ma_series.iloc[i]
         if pd.isna(ma): continue
-            
+
         low, high, close = df['low'].iloc[i], df['high'].iloc[i], df['close'].iloc[i]
         prev_close, prev_ma = df['close'].iloc[i - 1], ma_series.iloc[i - 1]
-        
+
         intraday_touch = low <= ma <= high
         crossing = False
         if not pd.isna(prev_ma):
             crossing = ((prev_close < prev_ma and close > ma) or (prev_close > prev_ma and close < ma))
-            
+
         if intraday_touch or crossing:
             if not touches or (current_date - touches[-1]['date_obj']).days > 5:
                 touches.append({'date_obj': current_date, 'idx': i, 'price_at_touch': close})
@@ -92,25 +91,25 @@ def compute_touch_metrics(df, touch_idx, price_at_touch, max_horizon=250):
     forward_close = df['close'].iloc[touch_idx + 1 : end_idx + 1]
     forward_high = df['high'].iloc[touch_idx + 1 : end_idx + 1]
     forward_low = df['low'].iloc[touch_idx + 1 : end_idx + 1]
-    
+
     if len(forward_close) == 0: return None
-        
+
     def get_perf(n):
         if len(forward_close) >= n: return round((forward_close.iloc[n-1] / price_at_touch - 1) * 100, 1)
         return None
-    
+
     highs_pct = [(h / price_at_touch - 1) * 100 for h in forward_high]
     lows_pct = [(l / price_at_touch - 1) * 100 for l in forward_low]
-    
+
     max_gain = round(max(highs_pct), 1) if highs_pct else 0
     max_gain_day = highs_pct.index(max(highs_pct)) + 1 if highs_pct else 0
     max_dd = round(min(lows_pct), 1) if lows_pct else 0
     max_dd_day = lows_pct.index(min(lows_pct)) + 1 if lows_pct else 0
-    
+
     current_perf = round((forward_close.iloc[-1] / price_at_touch - 1) * 100, 1)
     duration = len(forward_close)
     touch_date = df.index[touch_idx]
-    
+
     return {
         'date': touch_date.strftime('%Y-%m-%d'),
         'days_ago': (datetime.now() - touch_date).days,
@@ -128,21 +127,21 @@ def compute_stats(touches_metrics):
     closed = [t for t in touches_metrics if t.get('perf_60d') is not None]
     wins = [t for t in closed if t['perf_60d'] > 0]
     losses = [t for t in closed if t['perf_60d'] <= 0]
-    
+
     win_rate = round(len(wins) / len(closed) * 100, 1) if closed else 0
     avg_win = round(sum(t['perf_60d'] for t in wins) / len(wins), 1) if wins else 0
     avg_loss = round(sum(t['perf_60d'] for t in losses) / len(losses), 1) if losses else 0
     rr = round(abs(avg_win / avg_loss), 2) if avg_loss != 0 else 0
-    
+
     kelly = 0
     if rr > 0:
         win_prob = win_rate / 100
         kelly = max(0, win_prob - ((1 - win_prob) / rr))
-        
+
     best = max(touches_metrics, key=lambda t: t['max_gain'])
     worst = min(touches_metrics, key=lambda t: t['max_dd'])
     last = touches_metrics[0] if touches_metrics else None
-    
+
     return {
         'count': len(touches_metrics), 'win_rate': float(win_rate),
         'avg_win': float(avg_win), 'avg_loss': float(avg_loss), 'rr': float(rr),
@@ -164,7 +163,8 @@ def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     for stock in STOCKS_LIST:
         try:
-            df = yf.download(f"{stock}.VN", start="2000-01-01", auto_adjust=True, progress=False)
+            # THÊM multi_level_index=False ĐỂ ĐỌC ĐÚNG HEADER
+            df = yf.download(f"{stock}.VN", start="2000-01-01", auto_adjust=True, progress=False, multi_level_index=False)
             if not df.empty: df.to_csv(f"{DATA_DIR}/{stock}.csv")
         except Exception as e: print(f"Lỗi tải {stock}: {e}")
 
@@ -172,12 +172,15 @@ def main():
     for file_name in [f for f in os.listdir(DATA_DIR) if f.endswith('.csv')]:
         try:
             stock_symbol = file_name.replace('.csv', '')
-            
-            # Bỏ qua các file CSV của mã cổ phiếu không có trong danh sách hiện tại
+
             if stock_symbol not in STOCKS_LIST:
                 continue
-                
-            df = pd.read_csv(f"{DATA_DIR}/{file_name}")
+            
+            # SỬA CÁCH ĐỌC CSV ĐỂ BỎ QUA DÒNG RÁC
+            df = pd.read_csv(f"{DATA_DIR}/{file_name}", header=0)
+            if 'Ticker' in df.columns or df.iloc[0].astype(str).str.contains('VN').any():
+                 df = df.iloc[1:].reset_index(drop=True)
+            
             if len(df) < 10: continue
             df.columns = [str(c).strip().lower() for c in df.columns]
             df['time'] = pd.to_datetime(df[df.columns[0]], errors='coerce')
@@ -187,9 +190,9 @@ def main():
                 if col in df.columns: df[col] = pd.to_numeric(df[col], errors='coerce')
             all_data[stock_symbol] = df[df['volume'] > 0]
         except Exception as e: pass
-            
+
     result = {"generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "tickers_count": len(all_data), "indicators": {}}
-    
+
     for ind_name in INDICATORS_CONFIG.keys():
         ind_stocks = []
         for ticker, df in all_data.items():
@@ -204,7 +207,7 @@ def main():
                 **compute_current(df, ma_series), "stats": compute_stats(touch_metrics), "touches": touch_metrics
             })
         result["indicators"][ind_name] = {"stocks": ind_stocks}
-        
+
     with open(OUTPUT_JSON, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
 
