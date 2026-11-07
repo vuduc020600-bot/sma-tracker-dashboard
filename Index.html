@@ -19,11 +19,9 @@ input[type=range] { accent-color: #2962ff; }
 .pulse-dot { animation: pulse 1.5s infinite; }
 @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.5;transform:scale(1.3);} }
 .capital-input:focus { outline: none; border-color: #2962ff !important; }
-/* Tabular numbers for all data cells */
 table td, table th { font-variant-numeric: tabular-nums; }
 
 /* ============ v5 PALETTE OVERRIDES ============ */
-/* --- Surfaces --- */
 .bg-slate-900 { background-color: #131722 !important; }
 .bg-slate-950 { background-color: #0a0e17 !important; }
 .bg-slate-800 { background-color: #1e222d !important; }
@@ -35,14 +33,12 @@ table td, table th { font-variant-numeric: tabular-nums; }
 .hover\:bg-slate-800:hover { background-color: #1e222d !important; }
 .hover\:bg-slate-700:hover { background-color: #2a2e39 !important; }
 
-/* --- Borders --- */
 .border-slate-800 { border-color: #2a2e39 !important; }
 .border-slate-700 { border-color: #3d4250 !important; }
 .border-slate-900 { border-color: #1a1e28 !important; }
 .divide-slate-800 > * + * { border-color: #2a2e39 !important; }
 .divide-slate-900 > * + * { border-color: #1a1e28 !important; }
 
-/* --- Text hierarchy --- */
 .text-slate-100 { color: #d1d4dc !important; }
 .text-slate-200 { color: #c0c4cc !important; }
 .text-slate-300 { color: #a0a4af !important; }
@@ -51,7 +47,6 @@ table td, table th { font-variant-numeric: tabular-nums; }
 .text-slate-600 { color: #5a5d68 !important; }
 .text-slate-700 { color: #4a4d56 !important; }
 
-/* --- Primary: TradingView Blue --- */
 .bg-violet-600 { background-color: #2962ff !important; }
 .bg-violet-500 { background-color: #2962ff !important; }
 .hover\:bg-violet-500:hover { background-color: #1e53e5 !important; }
@@ -67,7 +62,6 @@ table td, table th { font-variant-numeric: tabular-nums; }
 .from-violet-500 { --tw-gradient-from: #2962ff !important; }
 .to-sky-400 { --tw-gradient-to: #64b5f6 !important; }
 
-/* --- Profit / BUY / Win: TV Green --- */
 .text-emerald-400 { color: #26a69a !important; }
 .text-emerald-300 { color: #4ecdc4 !important; }
 .bg-emerald-950\/50 { background-color: rgba(38,166,154,0.12) !important; }
@@ -78,7 +72,6 @@ table td, table th { font-variant-numeric: tabular-nums; }
 .border-emerald-500 { border-color: #26a69a !important; }
 .bg-emerald-500 { background-color: #26a69a !important; }
 
-/* --- Loss / SL: TV Red --- */
 .text-rose-400, .text-rose-500 { color: #ef5350 !important; }
 .text-rose-300 { color: #ff7675 !important; }
 .text-rose-600 { color: #ef5350 !important; }
@@ -90,7 +83,6 @@ table td, table th { font-variant-numeric: tabular-nums; }
 .hover\:bg-rose-500:hover { background-color: #ff5252 !important; }
 .border-rose-800 { border-color: rgba(239,83,80,0.3) !important; }
 
-/* --- Warning / HOLD: TV Orange --- */
 .text-amber-400 { color: #ff9800 !important; }
 .text-amber-500 { color: #ff9800 !important; }
 .text-amber-300 { color: #ffb74d !important; }
@@ -102,7 +94,6 @@ table td, table th { font-variant-numeric: tabular-nums; }
 .border-amber-800 { border-color: rgba(255,152,0,0.3) !important; }
 .border-amber-500 { border-color: #ff9800 !important; }
 
-/* --- Info: TV Light Blue --- */
 .text-sky-400 { color: #2196f3 !important; }
 .text-sky-300 { color: #64b5f6 !important; }
 .text-sky-500 { color: #2196f3 !important; }
@@ -111,23 +102,12 @@ table td, table th { font-variant-numeric: tabular-nums; }
 .bg-sky-500 { background-color: #2196f3 !important; }
 .border-sky-800 { border-color: rgba(33,150,243,0.3) !important; }
 
-/* --- Gold: SMA signature color --- */
 .text-sma-gold { color: #f0b90b !important; }
-.tab-sma-active {
-background-color: #f0b90b !important;
-color: #0a0e17 !important;
-border-color: #f0b90b !important;
-font-weight: 800 !important;
-}
+.tab-sma-active { background-color: #f0b90b !important; color: #0a0e17 !important; border-color: #f0b90b !important; font-weight: 800 !important; }
 .bg-sky-950.sky-active { background-color: rgba(33,150,243,0.15) !important; }
 
-/* --- Softer row hover (3% white overlay) --- */
 .table-row:hover { background-color: rgba(255,255,255,0.025) !important; }
-
-/* --- Kill violet glow shadows (dark theme doesn't need glow) --- */
-.shadow-lg, .shadow-violet-900\/30, .shadow-violet-900\/50, .shadow-rose-900\/50, .shadow-2xl {
-box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
-}
+.shadow-lg, .shadow-violet-900\/30, .shadow-violet-900\/50, .shadow-rose-900\/50, .shadow-2xl { box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important; }
 .shadow-md { box-shadow: 0 1px 2px rgba(0,0,0,0.3) !important; }
 </style>
 </head>
@@ -155,13 +135,24 @@ box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
 </div>
 </div>
 
-<!-- INDICATOR SELECTOR -->
-<div class="bg-slate-900 border border-slate-800 rounded-xl p-3 mb-4 flex items-center gap-3 flex-wrap">
-<span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider shrink-0 flex items-center gap-1.5">
-<i class="fas fa-wave-square text-sma-gold"></i> Chỉ báo
-</span>
-<div id="indicator-tabs" class="flex gap-1 flex-wrap"></div>
-<span class="ml-auto text-[10px] text-slate-600 italic">Chỉ áp dụng cho 2 tab "Danh sách" & "Sắp chạm"</span>
+<!-- INDICATOR & MODE SELECTOR -->
+<div class="bg-slate-900 border border-slate-800 rounded-xl p-3 mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="flex items-center gap-3 flex-wrap">
+        <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider shrink-0 flex items-center gap-1.5">
+            <i class="fas fa-wave-square text-sma-gold"></i> Chỉ báo
+        </span>
+        <div id="indicator-tabs" class="flex gap-1 flex-wrap"></div>
+    </div>
+    
+    <div class="flex items-center gap-2">
+        <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider shrink-0 flex items-center gap-1.5">
+            <i class="fas fa-filter text-sky-400"></i> Điều kiện chạm
+        </span>
+        <div class="flex gap-1 bg-slate-950 border border-slate-800 p-1 rounded-lg">
+            <button onclick="setTouchMode('intraday')" id="btn-mode-intraday" class="px-3 py-1.5 text-xs font-bold rounded transition-all">Trong phiên</button>
+            <button onclick="setTouchMode('close')" id="btn-mode-close" class="px-3 py-1.5 text-xs font-bold rounded transition-all">Đóng cửa</button>
+        </div>
+    </div>
 </div>
 
 <!-- KPI ROW -->
@@ -190,8 +181,8 @@ DATA (Fetch from real JSON)
 let ALL_DATA = null;
 const INDICATORS = ['SMA1250', 'SMA1000', 'SMA400', 'EMA400', 'SMA250', 'SMA200'];
 let TOTAL_STOCKS_COUNT = 0;
-let UNIQUE_STOCKS = []; // Danh sách tất cả các mã CK
-const STOCK_GROUPS_META = {}; // Mapping Ticker -> Group
+let UNIQUE_STOCKS = [];
+const STOCK_GROUPS_META = {}; 
 
 function fmtPct(v){if(v===null||v===undefined)return '—';return (v>=0?'+':'')+v.toFixed(1)+'%';}
 function fmtCapital(v) {
@@ -204,7 +195,10 @@ return v.toLocaleString() + ' đ';
 AGGREGATION LOGIC (Real Data)
 ============================================================ */
 function aggregateIndicator(ind) {
-const stocks = ALL_DATA?.indicators?.[ind]?.stocks || [];
+const indData = ALL_DATA?.indicators?.[ind];
+let stocks = [];
+if (indData) { stocks = indData.stocks ? indData.stocks : (indData[state.touchMode] || []); }
+
 const withKelly = stocks.filter(s => s.stats && s.stats.half_kelly > 0);
 const totalKelly = withKelly.reduce((a, s) => a + s.stats.half_kelly, 0);
 const avgKelly = withKelly.length ? totalKelly / withKelly.length : 0;
@@ -225,11 +219,11 @@ function pickBestIndicatorPerTicker() {
 return UNIQUE_STOCKS.map(ticker => {
 const group = STOCK_GROUPS_META[ticker] || 'Khác';
 const options = INDICATORS.map(ind => {
-const stocksForInd = ALL_DATA?.indicators?.[ind]?.stocks || [];
+const indData = ALL_DATA?.indicators?.[ind];
+let stocksForInd = [];
+if (indData) { stocksForInd = indData.stocks ? indData.stocks : (indData[state.touchMode] || []); }
 const s = stocksForInd.find(x => x.ticker === ticker);
-if (s && s.stats) {
-return { ind, stats: s.stats, score: s.stats.half_kelly, count: s.stats.count };
-}
+if (s && s.stats) { return { ind, stats: s.stats, score: s.stats.half_kelly, count: s.stats.count }; }
 return null;
 }).filter(o => o && o.score > 0).sort((a, b) => {
 if (Math.abs(a.score - b.score) < 0.5) return b.count - a.count;
@@ -240,8 +234,7 @@ if (!options.length) return null;
 const best = options[0];
 const strongCount = options.filter(o => o.score >= best.score * 0.8).length;
 return {
-ticker: ticker, group: group,
-best, alternatives: options.slice(1), strongCount, options,
+ticker: ticker, group: group, best, alternatives: options.slice(1), strongCount, options
 };
 }).filter(Boolean);
 }
@@ -251,6 +244,7 @@ STATE
 ============================================================ */
 const state = {
 indicator: 'SMA1250',
+touchMode: 'intraday', // 'intraday' hoặc 'close'
 recentDays: 30,
 view: 'list',
 sortKey: 'lastTouch', sortOrder: 'desc',
@@ -267,7 +261,13 @@ approachDirection: 'all',
 };
 
 const $ = id => document.getElementById(id);
-function currentStocks() { return ALL_DATA?.indicators?.[state.indicator]?.stocks || []; }
+
+function currentStocks() { 
+const indData = ALL_DATA?.indicators?.[state.indicator];
+if (!indData) return [];
+if (indData.stocks) return indData.stocks; // Tương thích ngược file JSON cũ
+return indData[state.touchMode] || []; 
+}
 
 /* ============================================================
 FETCH DATA
@@ -280,14 +280,16 @@ ALL_DATA = await response.json();
 $('update-time').innerText = new Date(ALL_DATA.generated_at).toLocaleString('vi-VN');
 TOTAL_STOCKS_COUNT = ALL_DATA.tickers_count || 0;
 
-// Build Unique Stocks and Groups
 const tempStocks = new Set();
 INDICATORS.forEach(ind => {
-const stocks = ALL_DATA?.indicators?.[ind]?.stocks || [];
-stocks.forEach(s => {
-tempStocks.add(s.ticker);
-STOCK_GROUPS_META[s.ticker] = s.group || 'Khác';
-});
+const indData = ALL_DATA?.indicators?.[ind];
+if (indData) {
+let stocks = [];
+if (indData.stocks) stocks = indData.stocks;
+else stocks = [...(indData.close || []), ...(indData.intraday || [])];
+
+stocks.forEach(s => { tempStocks.add(s.ticker); STOCK_GROUPS_META[s.ticker] = s.group || 'Khác'; });
+}
 });
 UNIQUE_STOCKS = Array.from(tempStocks).sort();
 if(UNIQUE_STOCKS.length > TOTAL_STOCKS_COUNT) TOTAL_STOCKS_COUNT = UNIQUE_STOCKS.length;
@@ -308,6 +310,13 @@ $('indicator-tabs').innerHTML = INDICATORS.map(ind => `
 `).join('');
 $('indicator-label').textContent = state.indicator;
 
+const btnIntraday = $('btn-mode-intraday');
+const btnClose = $('btn-mode-close');
+if (btnIntraday && btnClose) {
+btnIntraday.className = `px-3 py-1.5 text-xs font-bold rounded transition-all ${state.touchMode === 'intraday' ? 'bg-sky-600 text-white' : 'text-slate-500 hover:text-white'}`;
+btnClose.className = `px-3 py-1.5 text-xs font-bold rounded transition-all ${state.touchMode === 'close' ? 'bg-sky-600 text-white' : 'text-slate-500 hover:text-white'}`;
+}
+
 ['list', 'approach', 'alloc'].forEach(v => {
 const btn = $(`btn-${v}`);
 if (btn) btn.className = 'px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 text-slate-500 hover:text-white';
@@ -320,28 +329,18 @@ if (approachCount > 0) { badge.textContent = approachCount; badge.classList.remo
 else { badge.classList.add('hidden'); }
 
 renderKPIs();
-$('content').innerHTML = state.view === 'list' ? renderList()
-: state.view === 'approach' ? renderApproach()
-: renderAlloc();
+$('content').innerHTML = state.view === 'list' ? renderList() : state.view === 'approach' ? renderApproach() : renderAlloc();
 }
 
 function renderKPIs() {
 const stocks = currentStocks();
-let allTouches = 0;
-let recent = 0;
-let totalWinRate = 0;
-let totalMaxGain = 0;
-let totalMaxDD = 0;
-let countStats = 0;
+let allTouches = 0, recent = 0, totalWinRate = 0, totalMaxGain = 0, totalMaxDD = 0, countStats = 0;
 
 stocks.forEach(s => {
 if(s.stats) {
 allTouches += s.stats.count;
 if (s.stats.days_since_last !== null && s.stats.days_since_last <= state.recentDays) recent++;
-totalWinRate += s.stats.win_rate;
-totalMaxGain += s.stats.avg_max_gain;
-totalMaxDD += s.stats.avg_max_dd;
-countStats++;
+totalWinRate += s.stats.win_rate; totalMaxGain += s.stats.avg_max_gain; totalMaxDD += s.stats.avg_max_dd; countStats++;
 }
 });
 
@@ -360,28 +359,23 @@ ${kpiStatic('Avg Max Gain / DD', `+${avgMaxGain.toFixed(1)}% / ${avgMaxDD.toFixe
 function kpiStatic(label, value, icon, iconColor, iconBg, sub) {
 return `<div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
 <div class="w-10 h-10 ${iconBg} rounded-lg flex items-center justify-center ${iconColor}"><i class="fas ${icon}"></i></div>
-<div class="min-w-0">
-<div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">${label}</div>
+<div class="min-w-0"><div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">${label}</div>
 <div class="text-xl font-bold text-white leading-tight">${value}</div>
-<div class="text-[10px] text-slate-600">${sub}</div>
-</div></div>`;
+<div class="text-[10px] text-slate-600">${sub}</div></div></div>`;
 }
 
 function kpiEditableDays(count) {
 const presets = [3, 7, 10, 30, 60, 90];
 return `<div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
 <div class="w-10 h-10 bg-emerald-950/30 rounded-lg flex items-center justify-center text-emerald-400"><i class="fas fa-bolt"></i></div>
-<div class="min-w-0 flex-1">
-<div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
+<div class="min-w-0 flex-1"><div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
 <span>Mã chạm trong</span>
 <input type="number" min="1" max="500" value="${state.recentDays}" class="w-12 bg-slate-800 border border-slate-700 rounded px-1 py-0 text-center text-violet-300 font-bold text-[12px] outline-none focus:border-violet-500 transition-colors" onchange="updateRecentDays(this.value);" onclick="event.stopPropagation();">
-<span>ngày</span>
-</div>
+<span>ngày</span></div>
 <div class="text-xl font-bold text-white leading-tight">${count}</div>
 <div class="text-[10px] flex items-center gap-1 mt-0.5 flex-wrap">
 ${presets.map((p, i) => `<button onclick="setRecentDays(${p})" class="hover:text-emerald-400 ${state.recentDays===p ? 'text-emerald-400 font-bold' : 'text-slate-500'} transition-colors">${p}${i < presets.length - 1 ? '<span class="text-slate-700"> ·</span>' : ''}</button>`).join('')}
-</div>
-</div></div>`;
+</div></div></div>`;
 }
 
 /* ============================================================
@@ -635,9 +629,7 @@ function renderAllocSingle() {
 const stocks = currentStocks();
 const candidates = stocks.filter(s => s.stats && s.stats.half_kelly > 0).map(s => ({ ...s, weight: state.allocMethod === 'kelly' ? s.stats.half_kelly : 100 / Math.max(1, stocks.filter(x => x.stats && x.stats.half_kelly > 0).length) }));
 const totalWeight = candidates.reduce((a, s) => a + (state.allocMethod === 'kelly' ? s.stats.half_kelly : 1), 0);
-candidates.forEach(s => {
-s.weightPct = state.allocMethod === 'kelly' ? (s.stats.half_kelly / totalWeight * 100) : (1 / Math.max(1, candidates.length) * 100);
-});
+candidates.forEach(s => { s.weightPct = state.allocMethod === 'kelly' ? (s.stats.half_kelly / totalWeight * 100) : (1 / Math.max(1, candidates.length) * 100); });
 candidates.sort((a, b) => b.weightPct - a.weightPct);
 const avgKelly = candidates.length ? candidates.reduce((a, s) => a + s.stats.half_kelly, 0) / candidates.length : 0;
 const totalSuggested = Math.min(100, candidates.reduce((a, s) => a + s.stats.half_kelly, 0));
@@ -646,20 +638,18 @@ return `
 <div class="space-y-4">
 <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
 <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-<div>
-<div class="text-sm font-bold text-white"><i class="fas fa-scale-balanced text-violet-400 mr-2"></i>Cách phân bổ · <span class="text-sma-gold">${state.indicator}</span></div>
-<div class="text-[11px] text-slate-500 mt-0.5">Dựa trên Kelly Criterion từ lịch sử chạm ${state.indicator}</div>
-</div>
+<div><div class="text-sm font-bold text-white"><i class="fas fa-scale-balanced text-violet-400 mr-2"></i>Cách phân bổ · <span class="text-sma-gold">${state.indicator}</span></div>
+<div class="text-[11px] text-slate-500 mt-0.5">Dựa trên Kelly Criterion từ lịch sử chạm ${state.indicator}</div></div>
 <div class="flex gap-1 bg-slate-950 border border-slate-800 p-1 rounded-lg">
 <button onclick="state.allocMethod='kelly';render()" class="px-3 py-1.5 text-xs font-bold rounded ${state.allocMethod==='kelly'?'bg-violet-600 text-white':'text-slate-500 hover:text-white'}"><i class="fas fa-brain mr-1"></i>Half-Kelly</button>
 <button onclick="state.allocMethod='equal';render()" class="px-3 py-1.5 text-xs font-bold rounded ${state.allocMethod==='equal'?'bg-violet-600 text-white':'text-slate-500 hover:text-white'}"><i class="fas fa-equals mr-1"></i>Equal</button>
 </div>
 </div>
 <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px]">
-<div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5"><div class="text-[9px] text-slate-500 uppercase">Mã đủ điều kiện</div><div class="font-bold text-violet-300 text-lg">${candidates.length}<span class="text-slate-600 text-xs">/${stocks.length}</span></div><div class="text-[10px] text-slate-600">Half-Kelly > 0</div></div>
-<div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5"><div class="text-[9px] text-slate-500 uppercase">Tổng vốn gợi ý</div><div class="font-bold text-emerald-400 text-lg">${totalSuggested.toFixed(0)}%</div><div class="text-[10px] text-slate-600">còn lại = tiền mặt</div></div>
-<div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5"><div class="text-[9px] text-slate-500 uppercase">Avg Half-Kelly</div><div class="font-bold text-amber-400 text-lg">${avgKelly.toFixed(1)}%</div><div class="text-[10px] text-slate-600">TB mỗi mã</div></div>
-<div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5"><div class="text-[9px] text-slate-500 uppercase">Vốn thực tế</div><div class="font-bold text-sky-400 text-sm">${fmtCapital(state.capital)}</div><div class="text-[10px] text-slate-600">theo số anh nhập</div></div>
+<div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5"><div class="text-[9px] text-slate-500 uppercase">Mã đủ điều kiện</div><div class="font-bold text-violet-300 text-lg">${candidates.length}<span class="text-slate-600 text-xs">/${stocks.length}</span></div></div>
+<div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5"><div class="text-[9px] text-slate-500 uppercase">Tổng vốn gợi ý</div><div class="font-bold text-emerald-400 text-lg">${totalSuggested.toFixed(0)}%</div></div>
+<div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5"><div class="text-[9px] text-slate-500 uppercase">Avg Half-Kelly</div><div class="font-bold text-amber-400 text-lg">${avgKelly.toFixed(1)}%</div></div>
+<div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5"><div class="text-[9px] text-slate-500 uppercase">Vốn thực tế</div><div class="font-bold text-sky-400 text-sm">${fmtCapital(state.capital)}</div></div>
 </div>
 </div>
 <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
@@ -823,6 +813,12 @@ state.indicator = ind;
 state.expanded.clear();
 render();
 }
+function setTouchMode(mode) {
+if (state.touchMode === mode) return;
+state.touchMode = mode;
+state.expanded.clear();
+render();
+}
 function updateRecentDays(v) { state.recentDays = Math.max(1, Math.min(500, parseInt(v) || 30)); render(); }
 function setRecentDays(n) { state.recentDays = n; render(); }
 function setView(v) { state.view = v; render(); }
@@ -836,9 +832,7 @@ render();
 async function triggerManualRun() {
     const pass = prompt("Vui lòng nhập mật khẩu để chạy đồng bộ:");
     if (pass !== "020600") {
-        if (pass !== null) {
-            alert("Mật khẩu không chính xác! Đã hủy lệnh đồng bộ.");
-        }
+        if (pass !== null) alert("Mật khẩu không chính xác! Đã hủy lệnh đồng bộ.");
         return;
     }
 
@@ -850,7 +844,7 @@ async function triggerManualRun() {
     icon.classList.add('fa-spin');
     btn.innerHTML = `<i class="fas fa-sync-alt fa-spin"></i> Đang ra lệnh...`;
 
-    // Điền GitHub Token của anh vào giữa cặp dấu ngoặc kép bên dưới:
+    // !!! ĐIỀN TOKEN GITHUB CỦA ANH VÀO DÒNG DƯỚI ĐÂY !!!
     const GITHUB_TOKEN = "020600"; 
     
     const OWNER = "vuduc020600-bot";
@@ -883,7 +877,6 @@ async function triggerManualRun() {
         alert("Lỗi kết nối mạng khi gửi yêu cầu.");
     }
 
-    // Khóa nút 2 phút chống click liên tiếp
     setTimeout(() => {
         btn.disabled = false;
         btn.classList.remove('opacity-50', 'cursor-not-allowed');
