@@ -63,7 +63,7 @@ def compute_current(df, ma_series):
         'direction': 'above' if distance_pct > 0 else 'below'
     }
 
-def detect_touches(df, ma_series):
+def detect_touches(df, ma_series, mode='intraday'):
     touches = []
     valid_indices = df.index[ma_series.notna()]
     if len(valid_indices) < 2: return touches
@@ -76,12 +76,18 @@ def detect_touches(df, ma_series):
         low, high, close = df['low'].iloc[i], df['high'].iloc[i], df['close'].iloc[i]
         prev_close, prev_ma = df['close'].iloc[i - 1], ma_series.iloc[i - 1]
 
-        intraday_touch = low <= ma <= high
         crossing = False
         if not pd.isna(prev_ma):
             crossing = ((prev_close < prev_ma and close > ma) or (prev_close > prev_ma and close < ma))
 
-        if intraday_touch or crossing:
+        if mode == 'intraday':
+            # Chạm trong phiên: râu nến quét qua chỉ báo hoặc đâm xuyên
+            is_touch = (low <= ma <= high) or crossing
+        else:
+            # Chạm đóng cửa: chỉ tính khi giá đóng cửa bằng MA hoặc đâm xuyên
+            is_touch = (close == ma) or crossing
+
+        if is_touch:
             if not touches or (current_date - touches[-1]['date_obj']).days > 5:
                 touches.append({'date_obj': current_date, 'idx': i, 'price_at_touch': close})
     return touches
@@ -163,7 +169,6 @@ def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     for stock in STOCKS_LIST:
         try:
-            # THÊM multi_level_index=False ĐỂ ĐỌC ĐÚNG HEADER
             df = yf.download(f"{stock}.VN", start="2000-01-01", auto_adjust=True, progress=False, multi_level_index=False)
             if not df.empty: df.to_csv(f"{DATA_DIR}/{stock}.csv")
         except Exception as e: print(f"Lỗi tải {stock}: {e}")
@@ -172,11 +177,8 @@ def main():
     for file_name in [f for f in os.listdir(DATA_DIR) if f.endswith('.csv')]:
         try:
             stock_symbol = file_name.replace('.csv', '')
-
-            if stock_symbol not in STOCKS_LIST:
-                continue
+            if stock_symbol not in STOCKS_LIST: continue
             
-            # SỬA CÁCH ĐỌC CSV ĐỂ BỎ QUA DÒNG RÁC
             df = pd.read_csv(f"{DATA_DIR}/{file_name}", header=0)
             if 'Ticker' in df.columns or df.iloc[0].astype(str).str.contains('VN').any():
                  df = df.iloc[1:].reset_index(drop=True)
@@ -194,19 +196,37 @@ def main():
     result = {"generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "tickers_count": len(all_data), "indicators": {}}
 
     for ind_name in INDICATORS_CONFIG.keys():
-        ind_stocks = []
+        ind_stocks_close = []
+        ind_stocks_intraday = []
+        
         for ticker, df in all_data.items():
             ma_series = compute_ma(df, ind_name)
             if ma_series.isna().all(): continue
-            touches = detect_touches(df, ma_series)
-            touch_metrics = [m for m in (compute_touch_metrics(df, t['idx'], t['price_at_touch']) for t in touches) if m]
-            if not touch_metrics: continue
-            touch_metrics.sort(key=lambda x: x['date'], reverse=True)
-            ind_stocks.append({
-                "ticker": ticker, "group": get_stock_group(ticker),
-                **compute_current(df, ma_series), "stats": compute_stats(touch_metrics), "touches": touch_metrics
-            })
-        result["indicators"][ind_name] = {"stocks": ind_stocks}
+            
+            # --- Tính theo cơ chế CHẠM TRONG PHIÊN (Có tính râu nến) ---
+            touches_intra = detect_touches(df, ma_series, mode='intraday')
+            metrics_intra = [m for m in (compute_touch_metrics(df, t['idx'], t['price_at_touch']) for t in touches_intra) if m]
+            if metrics_intra:
+                metrics_intra.sort(key=lambda x: x['date'], reverse=True)
+                ind_stocks_intraday.append({
+                    "ticker": ticker, "group": get_stock_group(ticker),
+                    **compute_current(df, ma_series), "stats": compute_stats(metrics_intra), "touches": metrics_intra
+                })
+                
+            # --- Tính theo cơ chế CHẠM ĐÓNG CỬA (Chỉ tính khi close xuyên qua) ---
+            touches_close = detect_touches(df, ma_series, mode='close')
+            metrics_close = [m for m in (compute_touch_metrics(df, t['idx'], t['price_at_touch']) for t in touches_close) if m]
+            if metrics_close:
+                metrics_close.sort(key=lambda x: x['date'], reverse=True)
+                ind_stocks_close.append({
+                    "ticker": ticker, "group": get_stock_group(ticker),
+                    **compute_current(df, ma_series), "stats": compute_stats(metrics_close), "touches": metrics_close
+                })
+                
+        result["indicators"][ind_name] = {
+            "intraday": ind_stocks_intraday,
+            "close": ind_stocks_close
+        }
 
     with open(OUTPUT_JSON, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
