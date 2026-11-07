@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 from datetime import datetime, timezone
+from dateutil.relativedelta import relativedelta
 
 # ==========================================
 # 1. CẤU HÌNH
@@ -39,7 +40,7 @@ def get_stock_group(ticker):
     return "Khác"
 
 # ==========================================
-# 2. LOGIC TÍNH TOÁN
+# 2. LOGIC TÍNH TOÁN CƠ BẢN
 # ==========================================
 def compute_ma(df, ind_name):
     if df.empty or 'close' not in df.columns: return pd.Series(dtype='float64')
@@ -81,10 +82,8 @@ def detect_touches(df, ma_series, mode='intraday'):
             crossing = ((prev_close < prev_ma and close > ma) or (prev_close > prev_ma and close < ma))
 
         if mode == 'intraday':
-            # Chạm trong phiên: râu nến quét qua chỉ báo hoặc đâm xuyên
             is_touch = (low <= ma <= high) or crossing
         else:
-            # Chạm đóng cửa: chỉ tính khi giá đóng cửa bằng MA hoặc đâm xuyên
             is_touch = (close == ma) or crossing
 
         if is_touch:
@@ -163,7 +162,114 @@ def compute_stats(touches_metrics):
     }
 
 # ==========================================
-# 3. LUỒNG CHẠY CHÍNH
+# 3. WALK-FORWARD BACKTEST LOGIC
+# ==========================================
+def run_walk_forward_backtest(all_data, target_ind='SMA1250', mode='intraday'):
+    """
+    Chạy mô phỏng Walk-Forward Analysis lùi lại 1Y, 2Y, 3Y, 4Y.
+    Tạo snapshot quá khứ -> Lập danh mục Kelly -> Chạy thực tế -> So sánh Top 3 Hindsight.
+    """
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    timeframes = {'1Y': 1, '2Y': 2, '3Y': 3, '4Y': 4}
+    results = {}
+    
+    for tf_label, years_back in timeframes.items():
+        # Mốc cắt dữ liệu (T_0)
+        snapshot_date = now - relativedelta(years=years_back)
+        
+        past_metrics_by_stock = {}
+        forward_performance = {}
+        
+        for ticker, df in all_data.items():
+            if df.empty: continue
+            
+            # 1. CẮT DỮ LIỆU TỚI snapshot_date
+            past_df = df[df.index <= snapshot_date]
+            if len(past_df) < 50: continue # Quá ít dữ liệu
+            
+            # Tính SMA trên quá khứ
+            ma_series_past = compute_ma(past_df, target_ind)
+            if ma_series_past.isna().all(): continue
+            
+            # Tìm điểm chạm trong quá khứ để xây dựng Kelly
+            touches = detect_touches(past_df, ma_series_past, mode=mode)
+            touch_metrics = [m for m in (compute_touch_metrics(past_df, t['idx'], t['price_at_touch']) for t in touches) if m]
+            if not touch_metrics: continue
+            
+            stats = compute_stats(touch_metrics)
+            if stats:
+                past_metrics_by_stock[ticker] = stats
+                
+            # 2. LẤY DIỄN BIẾN TƯƠNG LAI (TỪ snapshot_date ĐẾN HIỆN TẠI)
+            future_df = df[df.index >= snapshot_date]
+            if len(future_df) > 0:
+                buy_price = future_df['close'].iloc[0]
+                current_price = future_df['close'].iloc[-1]
+                min_price = future_df['low'].min()
+                
+                perf = (current_price / buy_price - 1) * 100
+                max_dd = (min_price / buy_price - 1) * 100
+                
+                forward_performance[ticker] = {
+                    'perf': round(perf, 1),
+                    'max_dd': round(max_dd, 1)
+                }
+
+        # 3. MÔ PHỎNG DANH MỤC KELLY
+        kelly_candidates = []
+        for ticker, stats in past_metrics_by_stock.items():
+            if stats['half_kelly'] > 0 and ticker in forward_performance:
+                kelly_candidates.append({
+                    'ticker': ticker,
+                    'half_kelly': stats['half_kelly'],
+                    'perf': forward_performance[ticker]['perf'],
+                    'max_dd': forward_performance[ticker]['max_dd']
+                })
+                
+        total_kelly_score = sum(c['half_kelly'] for c in kelly_candidates)
+        portfolio_perf = 0
+        portfolio_dd_approx = 0
+        allocated_pct = 0
+        
+        if kelly_candidates:
+            # Sắp xếp Kelly từ cao xuống thấp
+            kelly_candidates.sort(key=lambda x: x['half_kelly'], reverse=True)
+            
+            # Chuẩn hóa tỷ trọng (giới hạn max 100%)
+            for c in kelly_candidates:
+                c['weight_pct'] = (c['half_kelly'] / max(1, total_kelly_score)) * min(100, total_kelly_score)
+                portfolio_perf += (c['weight_pct'] / 100) * c['perf']
+                # Ước lượng Max DD danh mục (Bình quân gia quyền DD các mã - tính tương đối)
+                portfolio_dd_approx += (c['weight_pct'] / 100) * c['max_dd']
+                
+            allocated_pct = min(100, total_kelly_score)
+            
+        # 4. TÌM TOP 3 HINDSIGHT (THỰC TẾ XẢY RA)
+        hindsight_ranking = []
+        for ticker, fw_perf in forward_performance.items():
+             hindsight_ranking.append({
+                 'ticker': ticker,
+                 'perf': fw_perf['perf'],
+                 'max_dd': fw_perf['max_dd']
+             })
+        hindsight_ranking.sort(key=lambda x: x['perf'], reverse=True)
+        top_3_hindsight = hindsight_ranking[:3]
+        
+        results[tf_label] = {
+            'snapshot_date': snapshot_date.strftime('%Y-%m-%d'),
+            'kelly_portfolio': {
+                'total_perf': round(portfolio_perf, 1),
+                'approx_max_dd': round(portfolio_dd_approx, 1),
+                'allocated_pct': round(allocated_pct, 1),
+                'holdings': kelly_candidates
+            },
+            'hindsight_top_3': top_3_hindsight
+        }
+        
+    return results
+
+# ==========================================
+# 4. HÀM CHÍNH
 # ==========================================
 def main():
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -193,7 +299,7 @@ def main():
             all_data[stock_symbol] = df[df['volume'] > 0]
         except Exception as e: pass
 
-    result = {"generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "tickers_count": len(all_data), "indicators": {}}
+    result = {"generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "tickers_count": len(all_data), "indicators": {}, "walk_forward": {}}
 
     for ind_name in INDICATORS_CONFIG.keys():
         ind_stocks_close = []
@@ -203,7 +309,7 @@ def main():
             ma_series = compute_ma(df, ind_name)
             if ma_series.isna().all(): continue
             
-            # --- Tính theo cơ chế CHẠM TRONG PHIÊN (Có tính râu nến) ---
+            # --- Chạm Trong phiên ---
             touches_intra = detect_touches(df, ma_series, mode='intraday')
             metrics_intra = [m for m in (compute_touch_metrics(df, t['idx'], t['price_at_touch']) for t in touches_intra) if m]
             if metrics_intra:
@@ -213,7 +319,7 @@ def main():
                     **compute_current(df, ma_series), "stats": compute_stats(metrics_intra), "touches": metrics_intra
                 })
                 
-            # --- Tính theo cơ chế CHẠM ĐÓNG CỬA (Chỉ tính khi close xuyên qua) ---
+            # --- Chạm Đóng cửa ---
             touches_close = detect_touches(df, ma_series, mode='close')
             metrics_close = [m for m in (compute_touch_metrics(df, t['idx'], t['price_at_touch']) for t in touches_close) if m]
             if metrics_close:
@@ -227,6 +333,9 @@ def main():
             "intraday": ind_stocks_intraday,
             "close": ind_stocks_close
         }
+
+    # Bổ sung chạy Walk-Forward Backtest cho SMA1250 (Intraday) làm tiêu chuẩn
+    result["walk_forward"] = run_walk_forward_backtest(all_data, target_ind='SMA1250', mode='intraday')
 
     with open(OUTPUT_JSON, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
