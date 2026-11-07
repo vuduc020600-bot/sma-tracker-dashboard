@@ -2,7 +2,7 @@ name: Daily SMA Tracker
 
 on:
   schedule:
-    - cron: '0 9 * * 1-5' # 16:00 giờ Việt Nam (T2-T6)
+    - cron: '46 7 * * 1-5' # 14:46 giờ Việt Nam (T2-T6)
   workflow_dispatch:
 
 permissions:
