@@ -134,7 +134,7 @@ box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
 <body class="p-5">
 
 <!-- HEADER -->
-<div class="flex items-center justify-between mb-4">
+<div class="flex items-center justify-between mb-4 flex-wrap gap-3">
 <div class="flex items-center gap-3">
 <div class="w-10 h-10 bg-violet-600 rounded-lg flex items-center justify-center">
 <i class="fas fa-wave-square text-white"></i>
@@ -144,9 +144,14 @@ box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
 <p class="text-xs text-slate-500 mt-0.5">Lịch sử chạm + theo dõi sắp chạm <b class="text-sma-gold" id="indicator-label">SMA1250</b></p>
 </div>
 </div>
-<div class="text-[11px] text-slate-400 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2">
-<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block mr-1.5"></span>
-Dữ liệu: GitHub Actions · <b class="text-sky-400" id="update-time">Đang tải...</b>
+<div class="flex items-center gap-2">
+  <button id="btn-sync" onclick="triggerManualRun()" class="bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:text-white text-slate-400 transition-colors rounded-lg px-3 py-2 text-[11px] font-bold flex items-center gap-1.5 outline-none cursor-pointer">
+    <i class="fas fa-sync-alt" id="sync-icon"></i> Đồng bộ ngay
+  </button>
+  <div class="text-[11px] text-slate-400 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 flex items-center gap-1.5">
+    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
+    <span>Dữ liệu: GitHub Actions · <b class="text-sky-400" id="update-time">Đang tải...</b></span>
+  </div>
 </div>
 </div>
 
@@ -203,7 +208,6 @@ const stocks = ALL_DATA?.indicators?.[ind]?.stocks || [];
 const withKelly = stocks.filter(s => s.stats && s.stats.half_kelly > 0);
 const totalKelly = withKelly.reduce((a, s) => a + s.stats.half_kelly, 0);
 const avgKelly = withKelly.length ? totalKelly / withKelly.length : 0;
-// Sửa coverage tính trên tổng số mã của toàn thị trường (TOTAL_STOCKS_COUNT) thay vì chỉ những mã đã chạm
 const coverage = TOTAL_STOCKS_COUNT > 0 ? (withKelly.length / TOTAL_STOCKS_COUNT) * 100 : 0;
 const validWinRateStocks = stocks.filter(s => s.stats && s.stats.win_rate !== undefined);
 const avgWinRate = validWinRateStocks.length ? validWinRateStocks.reduce((a, s) => a + s.stats.win_rate, 0) / validWinRateStocks.length : 0;
@@ -286,7 +290,6 @@ STOCK_GROUPS_META[s.ticker] = s.group || 'Khác';
 });
 });
 UNIQUE_STOCKS = Array.from(tempStocks).sort();
-// Cập nhật lại TOTAL_STOCKS_COUNT thực tế nếu có sai lệch
 if(UNIQUE_STOCKS.length > TOTAL_STOCKS_COUNT) TOTAL_STOCKS_COUNT = UNIQUE_STOCKS.length;
 
 render();
@@ -386,7 +389,6 @@ VIEW: LIST
 ============================================================ */
 function renderList() {
 const stocks = currentStocks();
-// Lấy các group thực sự có trong data
 const groupsSet = new Set();
 UNIQUE_STOCKS.forEach(t => groupsSet.add(STOCK_GROUPS_META[t]));
 const groups = Array.from(groupsSet).sort();
@@ -813,7 +815,7 @@ return `<tr class="table-row border-b border-slate-800">
 }
 
 /* ============================================================
-CONTROLS
+CONTROLS & MANUAL TRIGGER
 ============================================================ */
 function setIndicator(ind) {
 if (state.indicator === ind) return;
@@ -829,6 +831,64 @@ function setSort(key) {
 if (state.sortKey === key) state.sortOrder = state.sortOrder === 'desc' ? 'asc' : 'desc';
 else { state.sortKey = key; state.sortOrder = 'desc'; }
 render();
+}
+
+async function triggerManualRun() {
+    const pass = prompt("Vui lòng nhập mật khẩu để chạy đồng bộ:");
+    if (pass !== "020600") {
+        if (pass !== null) {
+            alert("Mật khẩu không chính xác! Đã hủy lệnh đồng bộ.");
+        }
+        return;
+    }
+
+    const btn = $('btn-sync');
+    const icon = $('sync-icon');
+    
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+    icon.classList.add('fa-spin');
+    btn.innerHTML = `<i class="fas fa-sync-alt fa-spin"></i> Đang ra lệnh...`;
+
+    // Điền GitHub Token của anh vào giữa cặp dấu ngoặc kép bên dưới:
+    const GITHUB_TOKEN = "ĐIỀN_TOKEN_CỦA_ANH_VÀO_ĐÂY"; 
+    
+    const OWNER = "vuduc020600-bot";
+    const REPO = "sma-tracker-dashboard";
+    const WORKFLOW_ID = "main.yml"; 
+    
+    const url = `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/${WORKFLOW_ID}/dispatches`;
+
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Accept": "application/vnd.github.v3+json",
+                "Authorization": `token ${GITHUB_TOKEN}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ ref: "main" })
+        });
+
+        if (response.ok) {
+            btn.innerHTML = `<i class="fas fa-check text-emerald-400"></i> Đã gửi lệnh`;
+            alert("Đã gửi lệnh chạy khẩn cấp tới GitHub thành công!\nAnh vui lòng đợi khoảng 1-2 phút rồi F5 tải lại trang để cập nhật số liệu mới.");
+        } else {
+            const errData = await response.json();
+            btn.innerHTML = `<i class="fas fa-exclamation-triangle text-rose-400"></i> Lỗi`;
+            alert(`Không thể kích hoạt. Lỗi từ GitHub: ${errData.message}`);
+        }
+    } catch (error) {
+        btn.innerHTML = `<i class="fas fa-times text-rose-400"></i> Lỗi mạng`;
+        alert("Lỗi kết nối mạng khi gửi yêu cầu.");
+    }
+
+    // Khóa nút 2 phút chống click liên tiếp
+    setTimeout(() => {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        btn.innerHTML = `<i class="fas fa-sync-alt" id="sync-icon"></i> Đồng bộ ngay`;
+    }, 120000);
 }
 
 initApp();
