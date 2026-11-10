@@ -463,7 +463,7 @@ return `
 <td class="py-2.5 px-2 text-center text-amber-400 font-mono">${st.avg_gain_day} ngày</td>
 <td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded ${st.half_kelly > 0 ? 'bg-violet-950 text-violet-300 border border-violet-800' : 'text-slate-500'} font-bold text-[11px]">${st.half_kelly > 0 ? st.half_kelly + '%' : '—'}</span></td>
 </tr>
-${isExp ? `<tr><td colspan="9" class="expanded p-4">${renderTouchHistory(s)}</td></tr>` : ''}
+${isExp ? `<tr><td colspan="9" class="expanded p-4 border-b border-slate-800">${renderTouchHistory(s)}</td></tr>` : ''}
 `;
 }).join('')}
 </tbody>
@@ -473,45 +473,130 @@ ${isExp ? `<tr><td colspan="9" class="expanded p-4">${renderTouchHistory(s)}</td
 }
 
 function renderTouchHistory(stock) {
-return `
-<div class="space-y-3">
-<div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px]">
-<div class="bg-slate-900 border border-slate-800 rounded-lg p-2"><div class="text-[9px] text-slate-500 uppercase">Avg win / loss (60d)</div><div class="font-bold"><span class="text-emerald-400">+${stock.stats.avg_win}%</span> <span class="text-slate-600">/</span> <span class="text-rose-400">${stock.stats.avg_loss}%</span></div></div>
-<div class="bg-slate-900 border border-slate-800 rounded-lg p-2"><div class="text-[9px] text-slate-500 uppercase">Risk/Reward</div><div class="font-bold text-violet-300">${stock.stats.rr}x</div></div>
-<div class="bg-slate-900 border border-slate-800 rounded-lg p-2"><div class="text-[9px] text-slate-500 uppercase">Best touch</div><div class="font-bold text-emerald-400">+${stock.stats.best_touch.max_gain}% <span class="text-slate-500 font-normal">(${stock.stats.best_touch.max_gain_day}d · ${stock.stats.best_touch.date})</span></div></div>
-<div class="bg-slate-900 border border-slate-800 rounded-lg p-2"><div class="text-[9px] text-slate-500 uppercase">Worst touch</div><div class="font-bold text-rose-400">${stock.stats.worst_touch.max_dd}% <span class="text-slate-500 font-normal">(${stock.stats.worst_touch.max_dd_day}d · ${stock.stats.worst_touch.date})</span></div></div>
-</div>
-<div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
-<div class="px-3 py-2 border-b border-slate-800 text-[10px] uppercase font-bold text-slate-400 flex items-center gap-2"><i class="fas fa-list-check text-violet-400"></i> Chi tiết ${stock.touches.length} lần chạm <span class="text-sma-gold">${state.indicator}</span></div>
-<div class="max-h-96 overflow-y-auto scrollbar">
-<table class="w-full text-left text-[11px] min-w-max">
-<thead class="bg-slate-950 sticky top-0 z-10"><tr class="text-[9px] uppercase text-slate-600 border-b border-slate-800">
-<th class="py-2 px-2">Ngày chạm</th><th class="py-2 px-2">Giá chạm</th>
-<th class="py-2 px-2 text-center">+30d</th><th class="py-2 px-2 text-center">+60d</th>
-<th class="py-2 px-2 text-center">+120d</th><th class="py-2 px-2 text-center">+250d</th>
-<th class="py-2 px-2 text-center">Max gain</th><th class="py-2 px-2 text-center">Max DD</th>
-<th class="py-2 px-2 text-center">Hiện tại</th>
-</tr></thead>
-<tbody>
-${stock.touches.map(t => {
-const cls = v => v === null ? 'text-slate-700' : v >= 0 ? 'text-emerald-400' : 'text-rose-400';
-return `<tr class="border-b border-slate-900 ${t.ongoing ? 'bg-violet-950/20' : ''}">
-<td class="py-1.5 px-2 font-mono text-slate-300">${t.date}${t.ongoing ? ' <span class="text-[8px] bg-violet-600 text-white px-1 rounded ml-1">ONGOING</span>' : ''}</td>
-<td class="py-1.5 px-2 font-mono text-slate-300">${t.price_at_touch.toLocaleString()}</td>
-<td class="py-1.5 px-2 text-center font-mono ${cls(t.perf_30d)}">${fmtPct(t.perf_30d)}</td>
-<td class="py-1.5 px-2 text-center font-mono ${cls(t.perf_60d)}">${fmtPct(t.perf_60d)}</td>
-<td class="py-1.5 px-2 text-center font-mono ${cls(t.perf_120d)}">${fmtPct(t.perf_120d)}</td>
-<td class="py-1.5 px-2 text-center font-mono ${cls(t.perf_250d)}">${fmtPct(t.perf_250d)}</td>
-<td class="py-1.5 px-2 text-center font-mono"><span class="text-emerald-400 font-bold">${fmtPct(t.max_gain)}</span><span class="text-[9px] text-slate-500"> (${t.max_gain_day}d)</span></td>
-<td class="py-1.5 px-2 text-center font-mono"><span class="text-rose-400 font-bold">${fmtPct(t.max_dd)}</span><span class="text-[9px] text-slate-500"> (${t.max_dd_day}d)</span></td>
-<td class="py-1.5 px-2 text-center font-mono font-bold ${cls(t.current_perf)}">${fmtPct(t.current_perf)} <span class="text-[9px] text-slate-500">${t.duration}d</span></td>
-</tr>`;
-}).join('')}
-</tbody>
-</table>
-</div>
-</div>
-</div>`;
+    const st = stock.stats;
+    const touches = stock.touches || [];
+    
+    // Formatting thẻ 1
+    const t20_text = st.avg_days_to_20pct ? `${st.avg_days_to_20pct} <span class="text-sm font-normal text-slate-400">phiên</span>` : `<span class="text-slate-500 text-lg">Không đạt</span>`;
+    const t20_min = st.min_days_to_20pct || '--';
+    const t20_max = st.max_days_to_20pct || '--';
+    
+    return `
+    <div class="space-y-4 pt-2 pb-2">
+        <!-- 4 THẺ TỔNG HỢP CHỐT LỜI/GỒNG LÃI -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            
+            <!-- THẺ 1: TARGET +20% -->
+            <div class="bg-slate-950 border border-emerald-500/30 rounded-xl p-3.5 relative overflow-hidden">
+                <div class="absolute -right-2 -bottom-2 opacity-5 text-emerald-400 text-6xl"><i class="fas fa-bullseye"></i></div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tgian đạt Target +20%</span>
+                    <span class="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.5 rounded font-bold">Xác suất ${st.win_rate_20pct}%</span>
+                </div>
+                <div class="text-2xl font-bold text-emerald-400 leading-tight">${t20_text}</div>
+                <div class="text-[10px] text-slate-500 mt-1.5 flex items-center gap-2">
+                    <span>Nhanh: <b class="text-emerald-400">${t20_min}d</b></span>·
+                    <span>Chậm: <b class="text-slate-300">${t20_max}d</b></span>·
+                    <span>Đạt: <b class="text-slate-300">${st.touches_20pct_count}/${st.count} lần</b></span>
+                </div>
+            </div>
+
+            <!-- THẺ 2: SWEET SPOT EXIT -->
+            <div class="bg-slate-950 border border-amber-500/30 rounded-xl p-3.5 relative overflow-hidden">
+                <div class="absolute -right-2 -bottom-2 opacity-5 text-amber-400 text-6xl"><i class="fas fa-hand-holding-dollar"></i></div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Gồng lãi (Sweet Spot)</span>
+                    <span class="text-[9px] bg-amber-950 text-amber-400 border border-amber-800 px-1.5 py-0.5 rounded font-bold">Tối ưu R:R</span>
+                </div>
+                <div class="text-2xl font-bold text-amber-400 leading-tight">+${st.sweet_spot_gain}% <span class="text-sm font-normal text-slate-400">/ ${st.sweet_spot_days} phiên</span></div>
+                <div class="text-[10px] text-slate-500 mt-1.5">Chốt ở mốc này giữ được <b class="text-amber-400">~75%</b> biên độ đỉnh trung bình</div>
+            </div>
+
+            <!-- THẺ 3: MAX GAIN -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5">
+                <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Đỉnh cao nhất TB</div>
+                <div class="text-2xl font-bold text-slate-100 leading-tight">+${st.avg_max_gain}% <span class="text-sm font-normal text-slate-500">tại ${st.avg_gain_day}d</span></div>
+                <div class="text-[10px] text-slate-500 mt-1.5">
+                    Kỷ lục: <b class="text-emerald-400">+${st.best_touch ? st.best_touch.max_gain : 0}%</b> (${st.best_touch ? st.best_touch.max_gain_day : 0}d · ${st.best_touch ? st.best_touch.date.substring(0,4) : ''})
+                </div>
+            </div>
+
+            <!-- THẺ 4: MAX DD -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5">
+                <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Sụt giảm tối đa TB</div>
+                <div class="text-2xl font-bold text-rose-400 leading-tight">${st.avg_max_dd}% <span class="text-sm font-normal text-slate-500">tại ${st.avg_dd_day}d</span></div>
+                <div class="text-[10px] text-slate-500 mt-1.5">
+                    Sập sâu nhất: <b class="text-rose-400">${st.worst_touch ? st.worst_touch.max_dd : 0}%</b> (${st.worst_touch ? st.worst_touch.max_dd_day : 0}d · ${st.worst_touch ? st.worst_touch.date.substring(0,4) : ''})
+                </div>
+            </div>
+
+        </div>
+
+        <!-- BẢNG CHI TIẾT TỪNG LẦN CHẠM -->
+        <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden mt-3">
+            <div class="px-4 py-2.5 border-b border-slate-800 text-xs font-bold text-slate-300 flex items-center justify-between">
+                <span class="flex items-center gap-2"><i class="fas fa-list-check text-violet-400"></i> Chi tiết ${touches.length} lần chạm</span>
+                <span class="text-[11px] text-slate-500 font-normal italic">Đơn vị ngày: Phiên giao dịch</span>
+            </div>
+            
+            <div class="overflow-x-auto scrollbar max-h-96">
+                <table class="w-full text-left text-[11px] min-w-max border-collapse">
+                    <thead class="sticky top-0 bg-slate-900/90 backdrop-blur z-10">
+                        <tr class="text-[9px] uppercase text-slate-500 border-b border-slate-800">
+                            <th class="py-2.5 px-3">Ngày chạm</th>
+                            <th class="py-2.5 px-3 text-right">Giá chạm</th>
+                            <th class="py-2.5 px-3 text-center text-emerald-400 bg-emerald-950/20 border-x border-emerald-900/40"><i class="fas fa-flag-checkered mr-1"></i>Đạt +20% sau</th>
+                            <th class="py-2.5 px-2 text-center">+30d</th>
+                            <th class="py-2.5 px-2 text-center">+60d</th>
+                            <th class="py-2.5 px-2 text-center">+120d</th>
+                            <th class="py-2.5 px-2 text-center">+250d</th>
+                            <th class="py-2.5 px-3 text-center text-amber-400 bg-amber-950/20 border-x border-amber-900/40">Max Gain (Đỉnh)</th>
+                            <th class="py-2.5 px-2 text-center text-rose-400">Max DD (Đáy)</th>
+                            <th class="py-2.5 px-3 text-center">Trạng thái (Hiện tại)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60">
+                        ${touches.map(t => {
+                            const cls = v => v === null ? 'text-slate-700' : v >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                            
+                            // Target 20% column format
+                            let t20_html = '';
+                            if (t.days_to_20pct) {
+                                t20_html = `<span class="text-emerald-400 font-bold">${t.days_to_20pct} phiên <i class="fas ${t.days_to_20pct <= 25 ? 'fa-bolt text-amber-400' : 'fa-check-circle'} text-[10px] ml-1"></i></span>`;
+                            } else if (t.ongoing) {
+                                t20_html = `<span class="text-slate-500">Đang chạy</span>`;
+                            } else {
+                                t20_html = `<span class="text-rose-400">Không đạt <i class="fas fa-times-circle text-[10px] ml-1"></i></span>`;
+                            }
+
+                            // Current State Column formatting
+                            let status_html = `<span class="text-slate-400">Giữ ${t.duration}d</span>`;
+                            if (!t.ongoing) status_html = `<span class="${cls(t.current_perf)} font-bold">Chốt lời/cắt lỗ</span>`;
+
+                            return `<tr class="hover:bg-white/5 ${t.ongoing ? 'bg-violet-950/10' : ''}">
+                                <td class="py-2 px-3 font-mono text-slate-300">${t.date}${t.ongoing ? ' <span class="text-[8px] bg-violet-600 text-white px-1 py-0.5 rounded ml-1 font-bold">ONGOING</span>' : ''}</td>
+                                <td class="py-2 px-3 text-right font-mono text-slate-300">${t.price_at_touch.toLocaleString()}</td>
+                                
+                                <td class="py-2 px-3 text-center bg-emerald-950/10 border-x border-emerald-900/20 font-mono">${t20_html}</td>
+                                
+                                <td class="py-2 px-2 text-center font-mono ${cls(t.perf_30d)}">${fmtPct(t.perf_30d)}</td>
+                                <td class="py-2 px-2 text-center font-mono ${cls(t.perf_60d)}">${fmtPct(t.perf_60d)}</td>
+                                <td class="py-2 px-2 text-center font-mono ${cls(t.perf_120d)}">${fmtPct(t.perf_120d)}</td>
+                                <td class="py-2 px-2 text-center font-mono ${cls(t.perf_250d)}">${fmtPct(t.perf_250d)}</td>
+                                
+                                <td class="py-2 px-3 text-center bg-amber-950/10 border-x border-amber-900/20 font-mono font-bold text-emerald-400">${fmtPct(t.max_gain)} <span class="text-[9px] text-slate-500 font-normal">(${t.max_gain_day}d)</span></td>
+                                <td class="py-2 px-2 text-center font-mono text-rose-400 font-bold">${fmtPct(t.max_dd)} <span class="text-[9px] text-slate-500 font-normal">(${t.max_dd_day}d)</span></td>
+                                
+                                <td class="py-2 px-3 text-center font-mono font-bold ${cls(t.current_perf)}">
+                                    ${fmtPct(t.current_perf)} <span class="text-[9px] text-slate-500 font-normal">(${t.duration}d)</span>
+                                </td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>`;
 }
 
 /* ============================================================
@@ -837,7 +922,7 @@ return `
         <div>
             <label class="block text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">Quay ngược thời gian về</label>
             <div class="flex gap-1 bg-slate-950 border border-slate-800 p-1 rounded-lg">
-                ${['1Y', '2Y', '3Y', '4Y'].map(tf => `
+                ${['9M', '1Y', '2Y', '3Y', '4Y'].map(tf => `
                     <button onclick="state.backtestTf='${tf}';render()" class="px-4 py-1.5 text-xs font-bold rounded ${state.backtestTf === tf ? 'bg-violet-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">${tf}</button>
                 `).join('')}
             </div>
