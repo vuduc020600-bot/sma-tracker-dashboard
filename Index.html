@@ -193,6 +193,13 @@ if (v >= 1e9) return (v / 1e9).toFixed(v % 1e9 === 0 ? 0 : 1) + ' tỷ';
 if (v >= 1e6) return (v / 1e6).toFixed(0) + ' tr';
 return v.toLocaleString() + ' đ';
 }
+function formatDateVN(dateStr) {
+    if (!dateStr) return '';
+    try {
+        const d = new Date(dateStr);
+        return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+    } catch(e) { return dateStr; }
+}
 
 const infoTip = (text, align = 'center') => `
 <span class="group relative inline-flex items-center ml-1 align-middle cursor-pointer">
@@ -475,18 +482,15 @@ ${isExp ? `<tr><td colspan="9" class="expanded p-4 border-b border-slate-800">${
 function renderTouchHistory(stock) {
     const st = stock.stats;
     const touches = stock.touches || [];
+    const updateTimeDate = ALL_DATA.generated_at ? formatDateVN(ALL_DATA.generated_at) : '';
     
-    // Formatting thẻ 1
     const t20_text = st.avg_days_to_20pct ? `${st.avg_days_to_20pct} <span class="text-sm font-normal text-slate-400">phiên</span>` : `<span class="text-slate-500 text-lg">Không đạt</span>`;
     const t20_min = st.min_days_to_20pct || '--';
     const t20_max = st.max_days_to_20pct || '--';
     
     return `
     <div class="space-y-4 pt-2 pb-2">
-        <!-- 4 THẺ TỔNG HỢP CHỐT LỜI/GỒNG LÃI -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            
-            <!-- THẺ 1: TARGET +20% -->
             <div class="bg-slate-950 border border-emerald-500/30 rounded-xl p-3.5 relative overflow-hidden">
                 <div class="absolute -right-2 -bottom-2 opacity-5 text-emerald-400 text-6xl"><i class="fas fa-bullseye"></i></div>
                 <div class="flex items-center justify-between mb-1">
@@ -501,7 +505,6 @@ function renderTouchHistory(stock) {
                 </div>
             </div>
 
-            <!-- THẺ 2: SWEET SPOT EXIT -->
             <div class="bg-slate-950 border border-amber-500/30 rounded-xl p-3.5 relative overflow-hidden">
                 <div class="absolute -right-2 -bottom-2 opacity-5 text-amber-400 text-6xl"><i class="fas fa-hand-holding-dollar"></i></div>
                 <div class="flex items-center justify-between mb-1">
@@ -512,7 +515,6 @@ function renderTouchHistory(stock) {
                 <div class="text-[10px] text-slate-500 mt-1.5">Chốt ở mốc này giữ được <b class="text-amber-400">~75%</b> biên độ đỉnh trung bình</div>
             </div>
 
-            <!-- THẺ 3: MAX GAIN -->
             <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5">
                 <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Đỉnh cao nhất TB</div>
                 <div class="text-2xl font-bold text-slate-100 leading-tight">+${st.avg_max_gain}% <span class="text-sm font-normal text-slate-500">tại ${st.avg_gain_day}d</span></div>
@@ -521,7 +523,6 @@ function renderTouchHistory(stock) {
                 </div>
             </div>
 
-            <!-- THẺ 4: MAX DD -->
             <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5">
                 <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Sụt giảm tối đa TB</div>
                 <div class="text-2xl font-bold text-rose-400 leading-tight">${st.avg_max_dd}% <span class="text-sm font-normal text-slate-500">tại ${st.avg_dd_day}d</span></div>
@@ -529,10 +530,8 @@ function renderTouchHistory(stock) {
                     Sập sâu nhất: <b class="text-rose-400">${st.worst_touch ? st.worst_touch.max_dd : 0}%</b> (${st.worst_touch ? st.worst_touch.max_dd_day : 0}d · ${st.worst_touch ? st.worst_touch.date.substring(0,4) : ''})
                 </div>
             </div>
-
         </div>
 
-        <!-- BẢNG CHI TIẾT TỪNG LẦN CHẠM -->
         <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden mt-3">
             <div class="px-4 py-2.5 border-b border-slate-800 text-xs font-bold text-slate-300 flex items-center justify-between">
                 <span class="flex items-center gap-2"><i class="fas fa-list-check text-violet-400"></i> Chi tiết ${touches.length} lần chạm</span>
@@ -552,14 +551,13 @@ function renderTouchHistory(stock) {
                             <th class="py-2.5 px-2 text-center">+250d</th>
                             <th class="py-2.5 px-3 text-center text-amber-400 bg-amber-950/20 border-x border-amber-900/40">Max Gain (Đỉnh)</th>
                             <th class="py-2.5 px-2 text-center text-rose-400">Max DD (Đáy)</th>
-                            <th class="py-2.5 px-3 text-center">Trạng thái (Hiện tại)</th>
+                            <th class="py-2.5 px-3 text-center text-sky-400 bg-sky-950/20 border-x border-sky-900/40">Hiện tại<br><span class="text-[9px] text-slate-500 normal-case">(${updateTimeDate})</span></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800/60">
                         ${touches.map(t => {
                             const cls = v => v === null ? 'text-slate-700' : v >= 0 ? 'text-emerald-400' : 'text-rose-400';
                             
-                            // Target 20% column format
                             let t20_html = '';
                             if (t.days_to_20pct) {
                                 t20_html = `<span class="text-emerald-400 font-bold">${t.days_to_20pct} phiên <i class="fas ${t.days_to_20pct <= 25 ? 'fa-bolt text-amber-400' : 'fa-check-circle'} text-[10px] ml-1"></i></span>`;
@@ -569,9 +567,9 @@ function renderTouchHistory(stock) {
                                 t20_html = `<span class="text-rose-400">Không đạt <i class="fas fa-times-circle text-[10px] ml-1"></i></span>`;
                             }
 
-                            // Current State Column formatting
-                            let status_html = `<span class="text-slate-400">Giữ ${t.duration}d</span>`;
-                            if (!t.ongoing) status_html = `<span class="${cls(t.current_perf)} font-bold">Chốt lời/cắt lỗ</span>`;
+                            // Sử dụng overall_perf và overall_sessions cho cột Hiện tại (Nếu Backend chưa chạy ra key này thì fallback dùng mốc 250d)
+                            const final_perf = t.overall_perf !== undefined ? t.overall_perf : t.current_perf;
+                            const final_days = t.overall_sessions !== undefined ? t.overall_sessions : t.duration;
 
                             return `<tr class="hover:bg-white/5 ${t.ongoing ? 'bg-violet-950/10' : ''}">
                                 <td class="py-2 px-3 font-mono text-slate-300">${t.date}${t.ongoing ? ' <span class="text-[8px] bg-violet-600 text-white px-1 py-0.5 rounded ml-1 font-bold">ONGOING</span>' : ''}</td>
@@ -587,8 +585,8 @@ function renderTouchHistory(stock) {
                                 <td class="py-2 px-3 text-center bg-amber-950/10 border-x border-amber-900/20 font-mono font-bold text-emerald-400">${fmtPct(t.max_gain)} <span class="text-[9px] text-slate-500 font-normal">(${t.max_gain_day}d)</span></td>
                                 <td class="py-2 px-2 text-center font-mono text-rose-400 font-bold">${fmtPct(t.max_dd)} <span class="text-[9px] text-slate-500 font-normal">(${t.max_dd_day}d)</span></td>
                                 
-                                <td class="py-2 px-3 text-center font-mono font-bold ${cls(t.current_perf)}">
-                                    ${fmtPct(t.current_perf)} <span class="text-[9px] text-slate-500 font-normal">(${t.duration}d)</span>
+                                <td class="py-2 px-3 text-center bg-sky-950/10 border-x border-sky-900/20 font-mono font-bold ${cls(final_perf)}">
+                                    ${fmtPct(final_perf)} <span class="text-[9px] text-slate-500 font-normal">(${final_days}d)</span>
                                 </td>
                             </tr>`;
                         }).join('')}
@@ -934,7 +932,6 @@ return `
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Cột 1: Kelly -->
         <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
             <div class="px-4 py-3 border-b border-slate-800 bg-slate-950/50 flex items-center justify-between">
                 <div>
@@ -984,7 +981,6 @@ return `
             </div>
         </div>
 
-        <!-- Cột 2: Hindsight -->
         <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden relative">
             <div class="px-4 py-3 border-b border-slate-800 bg-slate-950/50">
                 <h2 class="text-sm font-bold text-white"><i class="fas fa-eye text-sky-400 mr-2"></i>Góc nhìn Tương Lai (Hindsight)</h2>
