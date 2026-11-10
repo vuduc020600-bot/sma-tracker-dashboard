@@ -106,7 +106,7 @@ def compute_touch_metrics(df, touch_idx, price_at_touch, max_horizon=250):
     highs_pct = [(h / price_at_touch - 1) * 100 for h in forward_high]
     lows_pct = [(l / price_at_touch - 1) * 100 for l in forward_low]
 
-    # --- NEW: Tính số ngày chạm mốc +20% ---
+    # --- ĐẾM SỐ NGÀY ĐẠT +20% (Tính trên nến High) ---
     days_to_20pct = next((i + 1 for i, pct in enumerate(highs_pct) if pct >= 20), None)
 
     max_gain = round(max(highs_pct), 1) if highs_pct else 0
@@ -118,17 +118,27 @@ def compute_touch_metrics(df, touch_idx, price_at_touch, max_horizon=250):
     duration = len(forward_close)
     touch_date = df.index[touch_idx]
 
+    # --- HIỆU SUẤT TÍNH ĐẾN NGÀY HÔM NAY ---
+    overall_current_price = df['close'].iloc[-1]
+    overall_perf = round((overall_current_price / price_at_touch - 1) * 100, 1)
+    overall_days = (df.index[-1] - touch_date).days # Đếm số ngày lịch
+    # Số phiên giao dịch thực tế từ ngày chạm đến hôm nay
+    overall_sessions = len(df[df.index >= touch_date]) - 1
+
     return {
         'date': touch_date.strftime('%Y-%m-%d'),
         'days_ago': (datetime.now() - touch_date).days,
         'price_at_touch': float(price_at_touch),
-        'days_to_20pct': days_to_20pct, # Mới thêm
+        'days_to_20pct': days_to_20pct, 
         'perf_30d': get_perf(30), 'perf_60d': get_perf(60),
         'perf_120d': get_perf(120), 'perf_250d': get_perf(250),
         'max_gain': float(max_gain), 'max_gain_day': max_gain_day,
         'max_dd': float(max_dd), 'max_dd_day': max_dd_day,
         'current_perf': float(current_perf),
-        'duration': duration, 'ongoing': duration < max_horizon
+        'duration': duration, 'ongoing': duration < max_horizon,
+        # Data mới cho cột Hiện tại (So với giá hôm nay)
+        'overall_perf': float(overall_perf),
+        'overall_sessions': int(overall_sessions)
     }
 
 def compute_stats(touches_metrics):
@@ -156,14 +166,14 @@ def compute_stats(touches_metrics):
     avg_gain_day = int(sum(t['max_gain_day'] for t in touches_metrics) / len(touches_metrics))
     avg_dd_day = int(sum(t['max_dd_day'] for t in touches_metrics) / len(touches_metrics))
 
-    # --- NEW: Tính toán cho Thẻ Target +20% & Sweet Spot ---
+    # --- TÍNH TOÁN TARGET +20% & SWEET SPOT CỦA TỪNG MÃ ---
     touches_with_20pct = [t['days_to_20pct'] for t in touches_metrics if t['days_to_20pct'] is not None]
     win_rate_20pct = round(len(touches_with_20pct) / len(touches_metrics) * 100, 1) if touches_metrics else 0
     avg_days_to_20pct = int(sum(touches_with_20pct) / len(touches_with_20pct)) if touches_with_20pct else None
     min_days_to_20pct = min(touches_with_20pct) if touches_with_20pct else None
     max_days_to_20pct = max(touches_with_20pct) if touches_with_20pct else None
     
-    # Sweet Spot = 75% Đỉnh Trung Bình
+    # Đề xuất mốc gồng lãi: Ăn 75% quãng đường đến đỉnh trung bình để nhường 25% ngọn cho người sau
     sweet_spot_gain = float(round(avg_max_gain * 0.75, 1))
     sweet_spot_days = int(avg_gain_day * 0.75)
 
@@ -174,7 +184,7 @@ def compute_stats(touches_metrics):
         'avg_max_gain': avg_max_gain, 'avg_max_dd': avg_max_dd,
         'avg_gain_day': avg_gain_day, 'avg_dd_day': avg_dd_day,
         
-        # Output Data mới
+        # Kết quả chốt lời & gồng lãi
         'win_rate_20pct': float(win_rate_20pct),
         'avg_days_to_20pct': avg_days_to_20pct,
         'min_days_to_20pct': min_days_to_20pct,
@@ -194,7 +204,7 @@ def compute_stats(touches_metrics):
 # ==========================================
 def run_walk_forward_backtest(all_data, target_ind='SMA1250', mode='intraday'):
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    timeframes = {'1Y': 1, '2Y': 2, '3Y': 3, '4Y': 4, '6M': 0.5, '9M': 0.75}
+    timeframes = {'9M': 0.75, '1Y': 1, '2Y': 2, '3Y': 3, '4Y': 4}
     results = {}
     
     for tf_label, years_back in timeframes.items():
