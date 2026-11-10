@@ -106,6 +106,9 @@ def compute_touch_metrics(df, touch_idx, price_at_touch, max_horizon=250):
     highs_pct = [(h / price_at_touch - 1) * 100 for h in forward_high]
     lows_pct = [(l / price_at_touch - 1) * 100 for l in forward_low]
 
+    # --- NEW: Tính số ngày chạm mốc +20% ---
+    days_to_20pct = next((i + 1 for i, pct in enumerate(highs_pct) if pct >= 20), None)
+
     max_gain = round(max(highs_pct), 1) if highs_pct else 0
     max_gain_day = highs_pct.index(max(highs_pct)) + 1 if highs_pct else 0
     max_dd = round(min(lows_pct), 1) if lows_pct else 0
@@ -119,6 +122,7 @@ def compute_touch_metrics(df, touch_idx, price_at_touch, max_horizon=250):
         'date': touch_date.strftime('%Y-%m-%d'),
         'days_ago': (datetime.now() - touch_date).days,
         'price_at_touch': float(price_at_touch),
+        'days_to_20pct': days_to_20pct, # Mới thêm
         'perf_30d': get_perf(30), 'perf_60d': get_perf(60),
         'perf_120d': get_perf(120), 'perf_250d': get_perf(250),
         'max_gain': float(max_gain), 'max_gain_day': max_gain_day,
@@ -147,14 +151,38 @@ def compute_stats(touches_metrics):
     worst = min(touches_metrics, key=lambda t: t['max_dd'])
     last = touches_metrics[0] if touches_metrics else None
 
+    avg_max_gain = float(round(sum(t['max_gain'] for t in touches_metrics) / len(touches_metrics), 1))
+    avg_max_dd = float(round(sum(t['max_dd'] for t in touches_metrics) / len(touches_metrics), 1))
+    avg_gain_day = int(sum(t['max_gain_day'] for t in touches_metrics) / len(touches_metrics))
+    avg_dd_day = int(sum(t['max_dd_day'] for t in touches_metrics) / len(touches_metrics))
+
+    # --- NEW: Tính toán cho Thẻ Target +20% & Sweet Spot ---
+    touches_with_20pct = [t['days_to_20pct'] for t in touches_metrics if t['days_to_20pct'] is not None]
+    win_rate_20pct = round(len(touches_with_20pct) / len(touches_metrics) * 100, 1) if touches_metrics else 0
+    avg_days_to_20pct = int(sum(touches_with_20pct) / len(touches_with_20pct)) if touches_with_20pct else None
+    min_days_to_20pct = min(touches_with_20pct) if touches_with_20pct else None
+    max_days_to_20pct = max(touches_with_20pct) if touches_with_20pct else None
+    
+    # Sweet Spot = 75% Đỉnh Trung Bình
+    sweet_spot_gain = float(round(avg_max_gain * 0.75, 1))
+    sweet_spot_days = int(avg_gain_day * 0.75)
+
     return {
         'count': len(touches_metrics), 'win_rate': float(win_rate),
         'avg_win': float(avg_win), 'avg_loss': float(avg_loss), 'rr': float(rr),
         'kelly': float(round(kelly * 100, 1)), 'half_kelly': float(round((kelly * 100) / 2, 1)),
-        'avg_max_gain': float(round(sum(t['max_gain'] for t in touches_metrics) / len(touches_metrics), 1)),
-        'avg_max_dd': float(round(sum(t['max_dd'] for t in touches_metrics) / len(touches_metrics), 1)),
-        'avg_gain_day': int(sum(t['max_gain_day'] for t in touches_metrics) / len(touches_metrics)),
-        'avg_dd_day': int(sum(t['max_dd_day'] for t in touches_metrics) / len(touches_metrics)),
+        'avg_max_gain': avg_max_gain, 'avg_max_dd': avg_max_dd,
+        'avg_gain_day': avg_gain_day, 'avg_dd_day': avg_dd_day,
+        
+        # Output Data mới
+        'win_rate_20pct': float(win_rate_20pct),
+        'avg_days_to_20pct': avg_days_to_20pct,
+        'min_days_to_20pct': min_days_to_20pct,
+        'max_days_to_20pct': max_days_to_20pct,
+        'touches_20pct_count': len(touches_with_20pct),
+        'sweet_spot_gain': sweet_spot_gain,
+        'sweet_spot_days': sweet_spot_days,
+
         'days_since_last': last['days_ago'] if last else None,
         'last_touch_date': last['date'] if last else None,
         'best_touch': {'max_gain': float(best['max_gain']), 'max_gain_day': int(best['max_gain_day']), 'date': best['date']},
@@ -165,17 +193,12 @@ def compute_stats(touches_metrics):
 # 3. WALK-FORWARD BACKTEST LOGIC
 # ==========================================
 def run_walk_forward_backtest(all_data, target_ind='SMA1250', mode='intraday'):
-    """
-    Chạy mô phỏng Walk-Forward Analysis lùi lại 1Y, 2Y, 3Y, 4Y.
-    Tạo snapshot quá khứ -> Lập danh mục Kelly -> Chạy thực tế -> So sánh Top 3 Hindsight.
-    """
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    timeframes = {'1Y': 1, '2Y': 2, '3Y': 3, '4Y': 4}
+    timeframes = {'1Y': 1, '2Y': 2, '3Y': 3, '4Y': 4, '6M': 0.5, '9M': 0.75}
     results = {}
     
     for tf_label, years_back in timeframes.items():
-        # Mốc cắt dữ liệu (T_0)
-        snapshot_date = now - relativedelta(years=years_back)
+        snapshot_date = now - relativedelta(days=int(365 * years_back))
         
         past_metrics_by_stock = {}
         forward_performance = {}
@@ -183,45 +206,35 @@ def run_walk_forward_backtest(all_data, target_ind='SMA1250', mode='intraday'):
         for ticker, df in all_data.items():
             if df.empty: continue
             
-            # 1. CẮT DỮ LIỆU TỚI snapshot_date
             past_df = df[df.index <= snapshot_date]
-            if len(past_df) < 50: continue # Quá ít dữ liệu
+            if len(past_df) < 50: continue 
             
-            # Tính SMA trên quá khứ
             ma_series_past = compute_ma(past_df, target_ind)
             if ma_series_past.isna().all(): continue
             
-            # Tìm điểm chạm trong quá khứ để xây dựng Kelly
             touches = detect_touches(past_df, ma_series_past, mode=mode)
             touch_metrics = [m for m in (compute_touch_metrics(past_df, t['idx'], t['price_at_touch']) for t in touches) if m]
             if not touch_metrics: continue
             
             stats = compute_stats(touch_metrics)
-            if stats:
-                past_metrics_by_stock[ticker] = stats
+            if stats: past_metrics_by_stock[ticker] = stats
                 
-            # 2. LẤY DIỄN BIẾN TƯƠNG LAI (TỪ snapshot_date ĐẾN HIỆN TẠI)
             future_df = df[df.index >= snapshot_date]
             if len(future_df) > 0:
                 buy_price = future_df['close'].iloc[0]
                 current_price = future_df['close'].iloc[-1]
                 min_price = future_df['low'].min()
                 
-                perf = (current_price / buy_price - 1) * 100
-                max_dd = (min_price / buy_price - 1) * 100
-                
                 forward_performance[ticker] = {
-                    'perf': round(perf, 1),
-                    'max_dd': round(max_dd, 1)
+                    'perf': round((current_price / buy_price - 1) * 100, 1),
+                    'max_dd': round((min_price / buy_price - 1) * 100, 1)
                 }
 
-        # 3. MÔ PHỎNG DANH MỤC KELLY
         kelly_candidates = []
         for ticker, stats in past_metrics_by_stock.items():
             if stats['half_kelly'] > 0 and ticker in forward_performance:
                 kelly_candidates.append({
-                    'ticker': ticker,
-                    'half_kelly': stats['half_kelly'],
+                    'ticker': ticker, 'half_kelly': stats['half_kelly'],
                     'perf': forward_performance[ticker]['perf'],
                     'max_dd': forward_performance[ticker]['max_dd']
                 })
@@ -232,28 +245,15 @@ def run_walk_forward_backtest(all_data, target_ind='SMA1250', mode='intraday'):
         allocated_pct = 0
         
         if kelly_candidates:
-            # Sắp xếp Kelly từ cao xuống thấp
             kelly_candidates.sort(key=lambda x: x['half_kelly'], reverse=True)
-            
-            # Chuẩn hóa tỷ trọng (giới hạn max 100%)
             for c in kelly_candidates:
                 c['weight_pct'] = (c['half_kelly'] / max(1, total_kelly_score)) * min(100, total_kelly_score)
                 portfolio_perf += (c['weight_pct'] / 100) * c['perf']
-                # Ước lượng Max DD danh mục (Bình quân gia quyền DD các mã - tính tương đối)
                 portfolio_dd_approx += (c['weight_pct'] / 100) * c['max_dd']
-                
             allocated_pct = min(100, total_kelly_score)
             
-        # 4. TÌM TOP 3 HINDSIGHT (THỰC TẾ XẢY RA)
-        hindsight_ranking = []
-        for ticker, fw_perf in forward_performance.items():
-             hindsight_ranking.append({
-                 'ticker': ticker,
-                 'perf': fw_perf['perf'],
-                 'max_dd': fw_perf['max_dd']
-             })
+        hindsight_ranking = [{'ticker': t, 'perf': p['perf'], 'max_dd': p['max_dd']} for t, p in forward_performance.items()]
         hindsight_ranking.sort(key=lambda x: x['perf'], reverse=True)
-        top_3_hindsight = hindsight_ranking[:3]
         
         results[tf_label] = {
             'snapshot_date': snapshot_date.strftime('%Y-%m-%d'),
@@ -263,7 +263,7 @@ def run_walk_forward_backtest(all_data, target_ind='SMA1250', mode='intraday'):
                 'allocated_pct': round(allocated_pct, 1),
                 'holdings': kelly_candidates
             },
-            'hindsight_top_3': top_3_hindsight
+            'hindsight_top_3': hindsight_ranking[:3]
         }
         
     return results
@@ -309,7 +309,6 @@ def main():
             ma_series = compute_ma(df, ind_name)
             if ma_series.isna().all(): continue
             
-            # --- Chạm Trong phiên ---
             touches_intra = detect_touches(df, ma_series, mode='intraday')
             metrics_intra = [m for m in (compute_touch_metrics(df, t['idx'], t['price_at_touch']) for t in touches_intra) if m]
             if metrics_intra:
@@ -319,7 +318,6 @@ def main():
                     **compute_current(df, ma_series), "stats": compute_stats(metrics_intra), "touches": metrics_intra
                 })
                 
-            # --- Chạm Đóng cửa ---
             touches_close = detect_touches(df, ma_series, mode='close')
             metrics_close = [m for m in (compute_touch_metrics(df, t['idx'], t['price_at_touch']) for t in touches_close) if m]
             if metrics_close:
@@ -334,7 +332,6 @@ def main():
             "close": ind_stocks_close
         }
 
-    # Bổ sung chạy Walk-Forward Backtest cho SMA1250 (Intraday) làm tiêu chuẩn
     result["walk_forward"] = run_walk_forward_backtest(all_data, target_ind='SMA1250', mode='intraday')
 
     with open(OUTPUT_JSON, 'w', encoding='utf-8') as f:
